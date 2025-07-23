@@ -30,12 +30,9 @@ gmailRouter.get('/auth', authenticate, (req, res) => {
 
 // Handle OAuth callback
 gmailRouter.post('/auth/callback', async (req, res) => {
-  console.log('[OAuthCallback] Request body:', req.body);
   try {
     const { code, state: userId, userId: userIdDirect } = req.body;
     const finalUserId = userIdDirect || userId;
-    console.log('[OAuthCallback] Received code:', code);
-    console.log('[OAuthCallback] Received userId:', finalUserId);
     if (!code) {
       console.error('[OAuthCallback] Missing code');
       return res.status(400).json({ error: 'Authorization code is required' });
@@ -44,16 +41,13 @@ gmailRouter.post('/auth/callback', async (req, res) => {
       console.error('[OAuthCallback] Missing userId');
       return res.status(400).json({ error: 'User ID is required' });
     }
-    console.log('[OAuthCallback] Exchanging code for tokens:', code);
     // 1. Exchange authorization code for tokens
     const tokens = await getTokensFromCode(code);
-    console.log('[OAuthCallback] Tokens from Google:', tokens);
 
     // 2. Try to fetch user info (email)
     let email = null;
     try {
       email = await getUserEmail(tokens);
-      console.log('[OAuthCallback] Successfully fetched user email:', email);
     } catch (error) {
       console.error('[OAuthCallback] Error fetching user email:', error);
     }
@@ -69,14 +63,12 @@ gmailRouter.post('/auth/callback', async (req, res) => {
       updatedAt: new Date(),
       isActive: true
     });
-    console.log('[OAuthCallback] Upserted account in DB:', accountRecord);
 
     // If email was not available at upsert, try to update it now
     if (!email && accountRecord && accountRecord.id) {
       try {
         email = await getUserEmail(tokens);
         await updateEmailAccount(accountRecord.id, finalUserId, { email });
-        console.log('[OAuthCallback] Successfully updated email in DB:', email);
       } catch (updateErr) {
         console.error('[OAuthCallback] Error updating email in DB:', updateErr);
       }
@@ -100,7 +92,6 @@ gmailRouter.get('/accounts', authenticate, async (req, res) => {
     }
     
     const accounts = await listEmailAccounts(userId);
-    console.log('[Gmail Accounts] Raw accounts from DB:', accounts);
     // Transform accounts to match frontend GmailAccount type
     const transformedAccounts = accounts.map(account => ({
       id: account.id || account.email, // Use email as fallback ID
@@ -109,7 +100,6 @@ gmailRouter.get('/accounts', authenticate, async (req, res) => {
       connectionStatus: (account.isActive && account.email && account.accessToken && account.refreshToken) ? 'connected' : 'error',
       lastConnectedAt: account.createdAt || new Date().toISOString()
     }));
-    console.log('[Gmail Accounts] Transformed accounts sent to frontend:', transformedAccounts);
     
     res.json(transformedAccounts);
   } catch (error: any) {

@@ -69,10 +69,14 @@ Authorization: Bearer <firebase_id_token>
     "id": "account_id",
     "email": "user@example.com",
     "provider": "gmail",
-    "createdAt": "2023-06-15T10:00:00Z"
+    "isActive": true,
+    "lastConnectedAt": "2023-06-15T10:00:00Z"
   }
 ]
 ```
+
+- Accounts are now stored in the subcollection `users/{userId}/email_accounts`.
+- If a user tries to connect the same email twice, the existing document is updated (upsert), not duplicated.
 
 #### Remove Connected Account
 ```
@@ -222,21 +226,6 @@ GET /api/gmail/labels
   "error": "Failed to process request",
   "code": "INTERNAL_ERROR"
 }
-```
-Authorization: Bearer <firebase_id_token>
-```
-
-**Response**
-```json
-[
-  {
-    "id": "account_id",
-    "email": "user@example.com",
-    "isActive": true,
-    "connectionStatus": "connected",
-    "lastConnectedAt": "2023-01-01T00:00:00.000Z"
-  }
-]
 ```
 
 ### Get Emails

@@ -9,3 +9,5 @@ vite.config.ts.*
 .env
 .env.local
 .env.development.local
+# Log files with potentially sensitive info
+docs/erros.txt

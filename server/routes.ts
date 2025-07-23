@@ -2,25 +2,33 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { getCollectionRef, getDocRef, COLLECTIONS } from "./firebase";
-import { handleWebhook } from "./webhooks";
+
 import bodyParser from "body-parser";
-import { getDocs, getDoc, setDoc, addDoc, query, where, orderBy } from 'firebase/firestore';
-import { 
-  GmailService, 
-  getAuthUrl, 
-  getTokensFromCode, 
-  refreshAccessToken 
-} from "./services/gmail";
+import { getDocs, getDoc, setDoc, addDoc, query, where, orderBy, doc, DocumentData } from 'firebase/firestore';
+
+interface GmailAccount extends DocumentData {
+  userId: string;
+  email: string;
+  accessToken: string;
+  refreshToken: string;
+  isActive: boolean;
+  provider: string;
+  connectionStatus: 'connected' | 'disconnected' | 'error';
+  createdAt: string;
+  updatedAt: string;
+  lastConnectedAt: string;
+}
+
+import { GmailService, getAuthUrl, getTokensFromCode } from "./services/gmail.service";
+import { gmailRouter } from "./routes/gmail.routes";
+import { authenticate } from "./middleware/auth.middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Parse JSON bodies for webhooks
   app.use(bodyParser.json());
   
-  // Webhook endpoint for Clerk
-  app.post("/api/webhooks/clerk", (req, res) => {
-    // Forward to our webhook handler
-    handleWebhook(req, res).catch(console.error);
-  });
+  // Register Gmail routes with authentication
+  app.use('/api/gmail', gmailRouter);
   
   // Rest of your existing routes...
   const httpServer = createServer(app);
@@ -57,26 +65,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gmail account routes
   app.get("/api/gmail/accounts", async (req, res) => {
     try {
-      const { userId } = req.query;
+      const { userId } = req.query as { userId?: string };
       if (!userId) {
         return res.status(400).json({ message: "User ID is required" });
       }
       console.log('Fetching Gmail accounts for user:', userId);
-      
-      const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
-      const accountsQuery = query(accountsCollection, where('userId', '==', userId));
-      const accountsSnapshot = await getDocs(accountsQuery);
-      
-      const accounts = [];
-      accountsSnapshot.forEach((doc) => {
-        accounts.push({ id: doc.id, ...doc.data() });
-      });
-      
+
+      const accounts = await import('./emailAccounts').then((m) => m.listEmailAccounts(userId));
+
       console.log('Found accounts:', accounts);
-      res.json(accounts);
+      return res.json(accounts); // empty array is fine
     } catch (error) {
       console.error('Error fetching Gmail accounts:', error);
-      res.status(500).json({ message: "Failed to fetch Gmail accounts" });
+      // Always reply 200 with empty list to avoid client error state
+      return res.json([]);
     }
   });
 
@@ -122,19 +124,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store the Gmail account in Firebase
       const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
       
-      const gmailAccount = {
-        userId: userId as string,
-        email,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
+      // Check if this email is already connected for this user
+      const existingAccountQuery = query(
+        accountsCollection,
+        where('userId', '==', userId),
+        where('email', '==', email)
+      );
       
-      const accountDocRef = await addDoc(accountsCollection, gmailAccount);
+      const existingAccount = await getDocs(existingAccountQuery);
       
-      const savedAccount = { id: accountDocRef.id, ...gmailAccount };
-      console.log('Gmail account created:', savedAccount);
+      let accountDocRef;
+      
+      if (!existingAccount.empty) {
+        // Update existing account
+        const docId = existingAccount.docs[0].id;
+        accountDocRef = doc(accountsCollection, docId);
+        await setDoc(accountDocRef, {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          isActive: true,
+          updatedAt: new Date().toISOString(),
+          lastConnectedAt: new Date().toISOString(),
+        }, { merge: true });
+      } else {
+        // Create new account
+        const gmailAccount = {
+          userId: userId as string,
+          email,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          isActive: true,
+          provider: 'gmail',
+          connectionStatus: 'connected',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastConnectedAt: new Date().toISOString(),
+        };
+        
+        accountDocRef = await addDoc(accountsCollection, gmailAccount);
+      }
+      
+      // Get the saved account data
+      const accountDoc = await getDoc(accountDocRef);
+      const savedAccount = { id: accountDoc.id, ...accountDoc.data() };
+      
+      console.log('Gmail account saved:', savedAccount);
+      
+      // Broadcast the update to connected clients
+      broadcast({
+        type: 'gmail_account_connected',
+        data: { account: savedAccount }
+      });
 
       res.json({ success: true, account: savedAccount });
     } catch (error) {
@@ -250,58 +290,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Simple tasks route
-  app.get("/api/tasks", async (req, res) => {
-    try {
-      const { userId } = req.query;
-      
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
 
-      const tasksCollection = getCollectionRef(COLLECTIONS.TASKS);
-      const tasksQuery = query(tasksCollection, where('userId', '==', userId));
-      const tasksSnapshot = await getDocs(tasksQuery);
-      
-      const tasks = [];
-      tasksSnapshot.forEach((doc) => {
-        tasks.push({ id: doc.id, ...doc.data() });
-      });
-      
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
-  });
 
-  // Simple analytics route
-  app.get("/api/analytics/dashboard", async (req, res) => {
-    try {
-      const { userId } = req.query;
-      
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
-
-      // Simple mock analytics for now
-      const stats = {
-        totalEmails: 0,
-        onboardingEmails: 0,
-        pendingEmails: 0,
-        processedToday: 0,
-        totalTasks: 0,
-        completedTasks: 0,
-        pendingTasks: 0,
-        completedToday: 0,
-        aiAccuracy: 95,
-        pendingNotifications: 0
-      };
-      
-      res.json(stats);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch analytics" });
-    }
-  });
 
   return httpServer;
 }

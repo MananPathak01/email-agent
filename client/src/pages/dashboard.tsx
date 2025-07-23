@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import Sidebar from "@/components/sidebar";
 import ChatInterface from "@/components/chat-interface";
 import TaskPanel from "@/components/task-panel";
@@ -7,66 +6,32 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Bell, Search } from "lucide-react";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { useUser } from "@clerk/clerk-react";
-import { apiRequest } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAuth } from "firebase/auth";
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { isConnected, lastMessage } = useWebSocket();
-  const { user: clerkUser } = useUser();
-  const userId = clerkUser?.id;
+  const { isConnected } = useWebSocket();
+  const { user: authUser, loading: authLoading } = useAuth();
+  const userId = authUser?.uid;
 
-  // Create user in database if not exists
-  const createUserMutation = useMutation({
-    mutationFn: async (userData: any) => {
-      const response = await apiRequest('POST', '/api/user', userData);
-      return response.json();
-    },
-  });
+  // Show loading state while auth is being checked
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
-  // Create user in database on first load
-  useEffect(() => {
-    if (clerkUser && !createUserMutation.data) {
-      createUserMutation.mutate({
-        id: clerkUser.id,
-        email: clerkUser.primaryEmailAddress?.emailAddress || '',
-        name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || clerkUser.username || 'User',
-      });
-    }
-  }, [clerkUser]);
-
-  // Fetch user data
-  const { data: user } = useQuery({
-    queryKey: ['/api/user', userId],
-    enabled: !!userId,
-  });
-
-  // Fetch dashboard analytics
-  const { data: analytics } = useQuery({
-    queryKey: ['/api/analytics/dashboard'],
-    queryFn: async () => {
-      const response = await fetch(`/api/analytics/dashboard?userId=${userId}`);
-      if (!response.ok) throw new Error('Failed to fetch analytics');
-      return response.json();
-    },
-    enabled: !!userId,
-  });
-
-  useEffect(() => {
-    if (lastMessage) {
-      // Handle real-time updates
-      console.log('Received WebSocket message:', lastMessage);
-      // You could invalidate queries here based on message type
-    }
-  }, [lastMessage]);
-
-  if (!userId) {
-    return <div>Loading...</div>;
+  // If not authenticated, this should be handled by ProtectedRoute
+  if (!authUser) {
+    return null;
   }
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar Navigation */}
+      {/* Main Sidebar Navigation */}
       <Sidebar />
 
       {/* Main Content Area */}
@@ -98,23 +63,24 @@ export default function Dashboard() {
               {/* Notifications */}
               <Button variant="ghost" size="sm" className="relative">
                 <Bell className="h-4 w-4" />
-                {analytics?.pendingNotifications > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-error text-white text-xs rounded-full flex items-center justify-center">
-                    {analytics.pendingNotifications}
-                  </span>
-                )}
               </Button>
             </div>
           </div>
         </header>
 
-        {/* Dashboard Content */}
+        {/* Main Content Area */}
         <div className="flex-1 flex overflow-hidden">
-          {/* AI Chat Interface */}
-          <ChatInterface userId={userId} />
-
-          {/* Right Sidebar - Task Management */}
-          <TaskPanel userId={userId} />
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-4xl mx-auto">
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Welcome back, {authUser.displayName || 'User'}</h1>
+              
+              {/* Add your main dashboard content here */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Your Email Inbox</h2>
+                <p className="text-gray-600">Connect your Gmail account to get started.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

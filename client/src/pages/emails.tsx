@@ -17,7 +17,7 @@ import {
   Plus
 } from "lucide-react";
 import { useState } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 function getHeader(headers: any[], name: string) {
   const found = headers?.find((h) => h.name === name);
@@ -26,8 +26,8 @@ function getHeader(headers: any[], name: string) {
 
 export default function EmailsPage() {
   const [folder, setFolder] = useState<'inbox' | 'sent'>("inbox");
-  const { user: clerkUser } = useUser();
-  const userId = clerkUser?.id;
+  const { user } = useAuth();
+  const userId = user?.uid;
   
   const { data: emails = [], isLoading } = useQuery({
     queryKey: ['/api/emails', userId],

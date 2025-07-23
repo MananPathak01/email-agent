@@ -1,4 +1,5 @@
-import { useUser, SignOutButton } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAuth, signOut } from "firebase/auth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/sidebar";
@@ -7,7 +8,18 @@ import Sidebar from "@/components/sidebar";
 const CURRENT_USER_ID = 1;
 
 export default function SettingsPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
+
+  const handleSignOut = async () => {
+    const auth = getAuth();
+    try {
+      await signOut(auth);
+      // You might want to redirect the user to the landing page after sign-out
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -19,17 +31,15 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold mb-8">Settings</h1>
           <div className="flex items-center space-x-4 mb-8">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={user?.imageUrl || "/placeholder-avatar.jpg"} alt="User avatar" />
-              <AvatarFallback>{user?.firstName?.[0]?.toUpperCase()}{user?.lastName?.[0]?.toUpperCase() || ''}</AvatarFallback>
+              <AvatarImage src={user?.photoURL || "/placeholder-avatar.jpg"} alt="User avatar" />
+            <AvatarFallback>{user?.displayName?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-xl font-semibold">{user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'User'}</p>
-              <p className="text-gray-500">{user?.primaryEmailAddress?.emailAddress}</p>
+              <p className="text-xl font-semibold">{user ? user.displayName : 'User'}</p>
+              <p className="text-gray-500">{user?.email}</p>
             </div>
           </div>
-          <SignOutButton>
-            <Button variant="destructive">Log out</Button>
-          </SignOutButton>
+          <Button variant="destructive" onClick={handleSignOut}>Log out</Button>
         </div>
       </div>
     </div>

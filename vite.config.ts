@@ -13,10 +13,6 @@ export default defineConfig(async () => {
     runtimeErrorOverlay(),
   ];
 
-  if (process.env.NODE_ENV !== "production" && process.env.REPL_ID) {
-    const { cartographer } = await import("@replit/vite-plugin-cartographer");
-    plugins.push(cartographer());
-  }
 
   return {
     plugins,
@@ -28,18 +24,43 @@ export default defineConfig(async () => {
       },
     },
     root: resolve(__dirname, "client"),
-    build: {
-      outDir: resolve(__dirname, "dist/public"),
-      emptyOutDir: true,
-    },
     server: {
+      port: 5173,
+      strictPort: true,
       proxy: {
-        '/api': 'http://localhost:5000',
+        // Proxy API requests to the backend server
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy: any, _options: any) => {
+            proxy.on('error', (err: Error, _req: any, _res: any) => {
+              console.error('Proxy error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq: any, req: any, _res: any) => {
+              console.log('Proxying request:', req.method, req.url);
+            });
+          },
+        },
+        // Proxy WebSocket connections
+        '/ws': {
+          target: 'ws://localhost:3000',
+          ws: true,
+          changeOrigin: true,
+        }
+      },
+      hmr: {
+        overlay: false // This will disable the error overlay
       },
       fs: {
         strict: true,
         deny: ["**/.*"],
       },
+    },
+    build: {
+      outDir: resolve(__dirname, "dist/public"),
+      emptyOutDir: true,
     },
   };
 });

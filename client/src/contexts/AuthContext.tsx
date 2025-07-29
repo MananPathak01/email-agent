@@ -39,6 +39,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
 
+  // Remove prefetch logic for now - we'll implement it differently
+  // const queryClient = useQueryClient();
+  // const prefetchEmails = useCallback(async (userId: string) => { ... }, [queryClient]);
+
   // Set up auth state listener
   useEffect(() => {
     let isMounted = true;
@@ -67,6 +71,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               createdAt: userData.createdAt || serverTimestamp(),
               updatedAt: userData.updatedAt || serverTimestamp()
             });
+            
+            // Remove prefetch call for now
+            // prefetchEmails(firebaseUser.uid);
           } else {
             // Create user document if it doesn't exist
             const newUser: AppUser = {
@@ -80,6 +87,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
             setUser(newUser);
+            
+            // Remove prefetch call for now
+            // prefetchEmails(firebaseUser.uid);
           }
           
           // Handle redirect after successful login

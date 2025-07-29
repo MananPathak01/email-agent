@@ -22,7 +22,7 @@ import { ConnectEmailDialog } from "./dialogs/ConnectEmailDialog";
 import { 
   Mail, Plus, Loader2, Send, Inbox, 
   SendHorizonal, Trash, FileText, Settings, 
-  LogOut, ChevronDown, ChevronUp, Check, X, Bot 
+  LogOut, ChevronDown, ChevronUp, Check, X, Bot, ChevronRight, ChevronLeft 
 } from "lucide-react";
 
 
@@ -50,8 +50,13 @@ type NewEmailData = {
   toEmail: string;
 };
 
-export default function Sidebar() {
+interface SidebarProps {
+  defaultCollapsed?: boolean;
+}
+
+export default function Sidebar({ defaultCollapsed = false }: SidebarProps) {
   const [location, setLocation] = useLocation();
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [isAddEmailOpen, setIsAddEmailOpen] = useState(false);
   const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false);
   const auth = getAuth();
@@ -271,17 +276,21 @@ export default function Sidebar() {
   }, [user?.displayName]);
 
   return (
-    <div className="w-72 bg-white border-r border-border flex flex-col h-screen shadow-sm">
+    <div className={`bg-white border-r border-border flex flex-col h-screen shadow-sm transition-all duration-300 ${
+      isCollapsed ? "w-20" : "w-72"
+    }`}>
       {/* Brand Header */}
       <div className="p-6 border-b border-border bg-white">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
             <Bot className="text-gray-700 h-5 w-5" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">AI Email Agent</h1>
-            <p className="text-xs text-gray-500">Workflow Automation</p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">AI Email Agent</h1>
+              <p className="text-xs text-gray-500">Workflow Automation</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -296,23 +305,30 @@ export default function Sidebar() {
                 key={item.id}
                 type="button"
                 onClick={() => handleNavigate(item.path)}
-                className={`flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors
-                  ${isActive
+                className={`flex items-center w-full px-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
                     ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}
-                `}
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                } ${isCollapsed ? 'flex-col justify-center items-center' : ''}`}
+                title={isCollapsed ? undefined : item.label}
               >
-                <span className="flex items-center justify-center w-7 h-7 rounded-md bg-gray-50">
+                <span className="flex items-center justify-center w-7 h-7 rounded-md bg-gray-50 flex-shrink-0">
                   <Icon className="h-4 w-4 text-gray-500" />
                 </span>
-                <span>{item.label}</span>
-                {item.badge && (
-                  <Badge
-                    variant={isActive ? "secondary" : "default"}
-                    className="ml-auto text-xs"
-                  >
-                    {item.badge}
-                  </Badge>
+                {isCollapsed ? (
+                  <span className="text-[10px] mt-1 text-center">{item.label}</span>
+                ) : (
+                  <>
+                    <span className="ml-3">{item.label}</span>
+                    {item.badge && (
+                      <Badge
+                        variant={isActive ? "secondary" : "default"}
+                        className="ml-auto text-xs"
+                      >
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </>
                 )}
               </button>
             );
@@ -320,56 +336,72 @@ export default function Sidebar() {
         </div>
       </nav>
 
-      {/* Connected Accounts Section */}
-      <div className="p-4 border-t border-border bg-white">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-widest">Connected Accounts {gmailAccounts.length > 0 ? `(${gmailAccounts.length})` : ''}</h3>
-          {isLoadingAccounts && (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-          )}
-        </div>
-        <div className="space-y-2">
-          {accountsError ? (
-            <div className="text-xs text-red-600 p-2 bg-red-100 rounded-md">
-              Failed to load accounts. Please try refreshing the page.
-              <button 
-                onClick={() => queryClient.refetchQueries({ queryKey: ['/api/gmail/accounts', userId] })}
-                className="ml-2 text-gray-700 underline hover:no-underline font-semibold"
-              >
-                Retry
-              </button>
-            </div>
-          ) : gmailAccounts.length > 0 ? (
-            gmailAccounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-md">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 text-base">
-                  {account.email?.[0]?.toUpperCase() || <Mail className="h-4 w-4 text-gray-400" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{account.email}</p>
-                  <p className="text-xs text-gray-500">Gmail</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-sm text-gray-400 p-2 text-center">No connected accounts</div>
-          )}
-          <Button
-            variant="ghost"
-            className="w-full justify-start bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium rounded-md mt-2"
-            onClick={() => setIsConnectDialogOpen(true)}
-            disabled={connectGmailMutation.isPending || isLoadingAccounts}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Connect Email
-          </Button>
-        </div>
-      </div>
+      {/* Toggle Collapse Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="mx-4 mb-2"
+      >
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+      </Button>
 
-      {/* User Profile */}
+      {/* Connected Accounts Section - Only show when expanded */}
+      {!isCollapsed && (
+        <div className="p-4 border-t border-border bg-white">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-widest">Connected Accounts {gmailAccounts.length > 0 ? `(${gmailAccounts.length})` : ''}</h3>
+            {isLoadingAccounts && (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            )}
+          </div>
+          <div className="space-y-2">
+            {accountsError ? (
+              <div className="text-xs text-red-600 p-2 bg-red-100 rounded-md">
+                Failed to load accounts. Please try refreshing the page.
+                <button 
+                  onClick={() => queryClient.refetchQueries({ queryKey: ['/api/gmail/accounts', userId] })}
+                  className="ml-2 text-gray-700 underline hover:no-underline font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : gmailAccounts.length > 0 ? (
+              gmailAccounts.map((account) => (
+                <div key={account.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-md">
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 text-base">
+                    {account.email?.[0]?.toUpperCase() || <Mail className="h-4 w-4 text-gray-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{account.email}</p>
+                    <p className="text-xs text-gray-500">Gmail</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-gray-400 p-2 text-center">No connected accounts</div>
+            )}
+            <Button
+              variant="ghost"
+              className="w-full justify-start bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium rounded-md mt-2"
+              onClick={() => setIsConnectDialogOpen(true)}
+              disabled={connectGmailMutation.isPending || isLoadingAccounts}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Connect Email
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* User Profile - Simplified when collapsed */}
       <div className="p-3 border-t border-border bg-white">
-        <div className="flex flex-col items-center space-y-1">
-          <Avatar className="w-9 h-9 border border-gray-200">
+        {isCollapsed ? (
+          <Avatar className="w-9 h-9 border border-gray-200 mx-auto">
             <AvatarImage 
               src={user?.photoURL || ''} 
               alt={user?.displayName || 'User'} 
@@ -378,34 +410,48 @@ export default function Sidebar() {
               {getUserInitials()}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col items-center">
-            <p className="text-xs font-medium text-gray-900 truncate">{user?.displayName || 'User'}</p>
-            <p className="text-[10px] text-gray-400 truncate">{user?.email}</p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center space-x-1 mt-2">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="hover:bg-gray-100 text-gray-500 hover:text-gray-900"
-            onClick={() => handleNavigate("/settings")}
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="hover:bg-gray-100 text-gray-500 hover:text-gray-900"
-            onClick={handleSignOut}
-            title="Sign out"
-          >
-            <LogOut className="w-3 h-3" />
-          </Button>
-        </div>
+        ) : (
+          <>
+            <div className="flex flex-col items-center space-y-1">
+              <Avatar className="w-9 h-9 border border-gray-200">
+                <AvatarImage 
+                  src={user?.photoURL || ''} 
+                  alt={user?.displayName || 'User'} 
+                />
+                <AvatarFallback className="bg-gray-300 text-gray-700 text-base">
+                  {getUserInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col items-center">
+                <p className="text-xs font-medium text-gray-900 truncate">{user?.displayName || 'User'}</p>
+                <p className="text-[10px] text-gray-400 truncate">{user?.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-center space-x-1 mt-2">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="hover:bg-gray-100 text-gray-500 hover:text-gray-900"
+                onClick={() => handleNavigate("/settings")}
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="hover:bg-gray-100 text-gray-500 hover:text-gray-900"
+                onClick={handleSignOut}
+                title="Sign out"
+              >
+                <LogOut className="w-3 h-3" />
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Connect Email Account Dialog */}
+      {/* Dialogs - Keep these unchanged */}
       <ConnectEmailDialog
         open={isConnectDialogOpen}
         onOpenChange={setIsConnectDialogOpen}
@@ -413,7 +459,6 @@ export default function Sidebar() {
         isConnecting={connectGmailMutation.isPending}
       />
 
-      {/* Add Email Dialog */}
       <Dialog open={isAddEmailOpen} onOpenChange={setIsAddEmailOpen}>
         <DialogContent className="sm:max-w-[425px] bg-background border border-border shadow-lg">
           <DialogHeader>

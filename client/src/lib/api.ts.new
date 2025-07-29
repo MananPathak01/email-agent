@@ -1,0 +1,304 @@
+import { apiRequest } from "./queryClient";
+import { getAuth } from 'firebase/auth';
+import { auth } from '@/firebase';
+
+// Re-export apiRequest for direct use
+export { apiRequest };
+
+export interface EmailAnalytics {
+  totalEmails: number;
+  onboardingEmails: number;
+  pendingEmails: number;
+  processedToday: number;
+  averageResponseTime: number;
+}
+
+export interface TaskAnalytics {
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  completedToday: number;
+  averageCompletionTime: number;
+}
+
+export interface EmailMessage {
+  id: string;
+  threadId: string;
+  labelIds: string[];
+  snippet: string;
+  historyId: string;
+  internalDate: string;
+  payload: {
+    headers: Array<{
+      name: string;
+      value: string;
+    }>;
+    mimeType: string;
+    body?: {
+      data?: string;
+      size?: number;
+    };
+    parts?: Array<{
+      partId: string;
+      mimeType: string;
+      filename: string;
+      headers: Array<{
+        name: string;
+        value: string;
+      }>;
+      body: {
+        data?: string;
+        size?: number;
+        attachmentId?: string;
+      };
+    }>;
+  };
+  sizeEstimate: number;
+  parsedPayload?: {
+    subject: string;
+    from: string;
+    to: string;
+    date: string;
+    body: string;
+    attachments: Array<{
+      filename: string;
+      mimeType: string;
+      size: number;
+      attachmentId: string;
+    }>;
+  };
+}
+
+export interface EmailListResponse {
+  emails: EmailMessage[];
+  nextPageToken?: string;
+  resultSizeEstimate: number;
+  error?: boolean;
+  message?: string;
+}
+
+export interface GmailLabel {
+  id: string;
+  name: string;
+  type: string;
+  messageListVisibility?: string;
+  labelListVisibility?: string;
+  color?: {
+    textColor: string;
+    backgroundColor: string;
+  };
+}
+
+export interface EmailListOptions {
+  accountId?: string;
+  maxResults?: number;
+  pageToken?: string;
+  labelIds?: string[];
+  q?: string;
+}
+
+export interface GmailAccount {
+  id: string;
+  email: string;
+  isActive: boolean;
+  connectionStatus: 'connected' | 'disconnected' | 'error';
+  lastConnectedAt: string;
+}
+
+// Helper function to get auth token
+async function getAuthHeaders() {
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  } catch (error) {
+    console.error('Error getting auth token');
+    throw new Error('Failed to get authentication token');
+  }
+}
+
+// Gmail API functions
+export const gmailApi = {
+  // Get connected accounts
+  async getAccounts(): Promise<GmailAccount[]> {
+    const response = await fetch('/api/gmail/accounts', {
+      headers: await getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch accounts: ${response.status} ${response.statusText} ${errorText}`);
+    }
+    
+    return response.json();
+  },
+  
+  // Get all labels for an account
+  async getLabels(accountId?: string): Promise<GmailLabel[]> {
+    const url = new URL('/api/gmail/labels', window.location.origin);
+    if (accountId) {
+      url.searchParams.append('accountId', accountId);
+    }
+    
+    const response = await fetch(url.toString(), {
+      headers: await getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch labels: ${response.status} ${response.statusText} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  },
+  
+  // Get emails with options
+  async getEmails(options: EmailListOptions = {}): Promise<EmailListResponse> {
+    const url = new URL('/api/gmail/messages', window.location.origin);
+    
+    if (options.accountId) url.searchParams.append('accountId', options.accountId);
+    if (options.maxResults) url.searchParams.append('maxResults', options.maxResults.toString());
+    if (options.pageToken) url.searchParams.append('pageToken', options.pageToken);
+    if (options.q) url.searchParams.append('q', options.q);
+    if (options.labelIds?.length) {
+      options.labelIds.forEach(id => url.searchParams.append('labelIds', id));
+    }
+    
+    const response = await fetch(url.toString(), {
+      headers: await getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch emails: ${response.status} ${response.statusText} ${errorText}`);
+    }
+    
+    return response.json();
+  },
+  
+  // Get single email
+  async getEmail(messageId: string, accountId?: string): Promise<EmailMessage> {
+    if (!messageId) {
+      throw new Error('Message ID is required');
+    }
+    
+    const url = new URL(`/api/gmail/messages/${messageId}`, window.location.origin);
+    if (accountId) {
+      url.searchParams.append('accountId', accountId);
+    }
+    
+    const response = await fetch(url.toString(), {
+      headers: await getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch email: ${response.status} ${response.statusText} ${errorText}`);
+    }
+    
+    return response.json();
+  },
+  
+  // Modify email (mark as read/unread, move to trash)
+  async modifyEmail(
+    messageId: string, 
+    action: 'markAsRead' | 'markAsUnread' | 'moveToTrash',
+    accountId?: string
+  ): Promise<void> {
+    const url = new URL(`/api/gmail/messages/${messageId}`, window.location.origin);
+    if (accountId) {
+      url.searchParams.append('accountId', accountId);
+    }
+    
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ action })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to ${action} email: ${response.status} ${response.statusText} ${errorText}`);
+    }
+  }
+};
+
+export async function syncEmails(userId: number) {
+  const response = await apiRequest('POST', '/api/emails/sync', { userId });
+  return response.json();
+}
+
+export async function sendEmailResponse(emailId: number, customMessage?: string) {
+  const response = await apiRequest('POST', `/api/emails/${emailId}/respond`, {
+    customMessage,
+  });
+  return response.json();
+}
+
+export async function createTask(taskData: any) {
+  const response = await apiRequest('POST', '/api/tasks', taskData);
+  return response.json();
+}
+
+export async function updateTaskStatus(taskId: number, status: string) {
+  const response = await apiRequest('PATCH', `/api/tasks/${taskId}/status`, {
+    status,
+  });
+  return response.json();
+}
+
+export async function processAllEmails(userId: number) {
+  const response = await apiRequest('POST', '/api/chat/process-emails', {
+    userId,
+  });
+  return response.json();
+}
+
+export async function summarizeConversation(emailIds: number[]) {
+  const response = await apiRequest('POST', '/api/chat/summarize', {
+    emailIds,
+  });
+  return response.json();
+}
+
+export async function getEmailAnalytics(userId: number): Promise<EmailAnalytics> {
+  const response = await apiRequest('GET', `/api/analytics/emails?userId=${userId}`);
+  return response.json();
+}
+
+export async function getTaskAnalytics(userId: number): Promise<TaskAnalytics> {
+  const response = await apiRequest('GET', `/api/analytics/tasks?userId=${userId}`);
+  return response.json();
+}
+
+export async function connectGmailAccount(userId: number) {
+  const response = await apiRequest('GET', '/api/auth/gmail');
+  const data = await response.json();
+  
+  // Open OAuth popup
+  const popup = window.open(
+    data.authUrl,
+    'gmail-oauth',
+    'width=500,height=600,scrollbars=yes,resizable=yes'
+  );
+
+  return new Promise((resolve, reject) => {
+    const checkClosed = setInterval(() => {
+      if (popup?.closed) {
+        clearInterval(checkClosed);
+        resolve(true);
+      }
+    }, 1000);
+
+    setTimeout(() => {
+      clearInterval(checkClosed);
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+      reject(new Error('OAuth timeout'));
+    }, 300000);
+  });
+}

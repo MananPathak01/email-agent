@@ -1,0 +1,5 @@
+export { Separator } from "./separator"
+export { Badge } from "./badge"
+export { Button } from "./button"
+export { Input } from "./input"
+export { ScrollArea } from "./scroll-area" 

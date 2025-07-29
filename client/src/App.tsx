@@ -40,8 +40,8 @@ const RootRoute = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
         <Switch>
           <Route path="/" component={RootRoute} />
           
@@ -86,14 +86,14 @@ function App() {
               <AnalyticsPage />
             </ProtectedRoute>
           </Route>
-<Route path="/settings">
+          <Route path="/settings">
             <ProtectedRoute>
               <SettingsPage />
             </ProtectedRoute>
           </Route>
         </Switch>
-      </QueryClientProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

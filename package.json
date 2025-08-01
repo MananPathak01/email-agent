@@ -9,7 +9,9 @@
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "generate-test-token": "tsx scripts/generateTestToken.ts",
-    "test-token": "tsx scripts/testAuth.ts"
+    "test-token": "tsx scripts/testAuth.ts",
+    "install-cron": "npm install node-cron @types/node-cron",
+    "test-sync": "tsx server/scripts/test-smart-sync.ts"
   },
   "dependencies": {
     "@babel/code-frame": "^7.27.1",

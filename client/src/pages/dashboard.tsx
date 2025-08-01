@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "@/components/sidebar";
 import ChatInterface from "@/components/chat-interface";
 import TaskPanel from "@/components/task-panel";
+import { SmartSyncTest } from "@/components/SmartSyncTest";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Bell, Search } from "lucide-react";
@@ -73,6 +74,11 @@ export default function Dashboard() {
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Welcome back, {authUser.displayName || 'User'}</h1>
+              
+              {/* Smart Sync Test Panel */}
+              <div className="mb-6">
+                <SmartSyncTest />
+              </div>
               
               {/* Add your main dashboard content here */}
               <div className="bg-white rounded-lg shadow p-6">

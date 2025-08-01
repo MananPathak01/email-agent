@@ -67,6 +67,16 @@ wss.on('connection', (ws: WebSocket) => {
 // Register routes
 registerRoutes(app);
 
+// Add cron job management endpoints (development only)
+if (process.env.NODE_ENV === 'development') {
+  app.get('/api/cron/status', (req, res) => {
+    res.json({ 
+      message: 'Cron management available in development',
+      instructions: 'Install node-cron and import localCron to start sync jobs'
+    });
+  });
+}
+
 // Error handling
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;

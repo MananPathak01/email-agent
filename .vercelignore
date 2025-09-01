@@ -1,0 +1,17 @@
+node_modules
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.git
+.gitignore
+.vscode
+.kiro
+scripts
+dist-scripts
+debug-tokens.js
+*.log
+.replit
+replit.md
+gemini.md

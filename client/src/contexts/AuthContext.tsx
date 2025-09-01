@@ -85,6 +85,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Handle redirect after successful login
           const currentPath = window.location.pathname;
           const isAuthPage = ['/login', '/signup'].includes(currentPath);
+          const isOAuthCallback = currentPath === '/oauth/callback';
           const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
           
           if (isAuthPage) {
@@ -93,6 +94,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setTimeout(() => {
               window.location.href = redirectUrl || '/dashboard';
             }, 100);
+          }
+          
+          // Don't auto-redirect from OAuth callback - let the callback page handle it
+          if (isOAuthCallback) {
+            // OAuth callback page will handle its own redirect logic
+            return;
           }
         } else {
           // User is signed out

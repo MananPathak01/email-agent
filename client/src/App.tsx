@@ -3,12 +3,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ProtectedRoute, PublicRoute } from "@/components/ProtectedRoute";
 import { useEffect } from "react";
+import { TestConfig } from "./components/TestConfig";
 
 // Pages
 import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
+import ChatPage from "@/pages/chat";
 import EmailsPage from "@/pages/emails";
-import TasksPage from "@/pages/tasks";
 import AnalyticsPage from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import LoginPage from "@/pages/login";
@@ -42,6 +43,7 @@ function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
+        <TestConfig />
         <Switch>
           <Route path="/" component={RootRoute} />
           
@@ -71,14 +73,15 @@ function App() {
               <Dashboard />
             </ProtectedRoute>
           </Route>
+
+          <Route path="/chat">
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          </Route>
           <Route path="/emails">
             <ProtectedRoute>
               <EmailsPage />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/tasks">
-            <ProtectedRoute>
-              <TasksPage />
             </ProtectedRoute>
           </Route>
           <Route path="/analytics">

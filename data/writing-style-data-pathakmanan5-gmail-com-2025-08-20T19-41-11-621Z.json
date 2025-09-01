@@ -1,0 +1,52 @@
+{
+  "userId": "JecPh5R1BBdqrTnO68wOZm1m4vl1",
+  "email": "pathakmanan5@gmail.com",
+  "collectedAt": "2025-08-20T19:41:11.621Z",
+  "summary": {
+    "sentCount": 10,
+    "contextCount": 0,
+    "totalProcessed": 10
+  },
+  "samples": [
+    {
+      "from": "pathakmanan5@gmail.com",
+      "to": [
+        "Linda.Coticone@bmo.com"
+      ],
+      "subject": "BMO; Call Back Refinance",
+      "wordCount": 22
+    },
+    {
+      "from": "pathakmanan5@gmail.com",
+      "to": [
+        "Linda.Coticone@bmo.com"
+      ],
+      "subject": "BMO; Call Back Refinance",
+      "wordCount": 17
+    },
+    {
+      "from": "pathakmanan5@gmail.com",
+      "to": [
+        "mike@foodforgood.ca"
+      ],
+      "subject": "Food For Good Invitation for Interview",
+      "wordCount": 72
+    },
+    {
+      "from": "pathakmanan5@gmail.com",
+      "to": [
+        "Linda.Coticone@bmo.com"
+      ],
+      "subject": "BMO; Call Back Refinance",
+      "wordCount": 33
+    },
+    {
+      "from": "pathakmanan5@gmail.com",
+      "to": [
+        "mike@foodforgood.ca"
+      ],
+      "subject": "Food For Good Invitation for Interview",
+      "wordCount": 13
+    }
+  ]
+}

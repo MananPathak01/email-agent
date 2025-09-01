@@ -1,0 +1,97 @@
+Email Response Generation System - Context Optimization & LLM Integration
+Overview
+We need to build an intelligent context selection system that takes our detailed user communication profile and creates optimized prompts for the LLM to generate personalized email responses. The goal is to minimize token usage while maintaining response quality.
+Core Requirements
+1. Context Condensation System
+Create a function that converts our full user profile into a condensed context object:
+Input: Full communication profile (the large JSON with all analysis)
+Output: Condensed profile (~100-150 tokens) containing only essential patterns
+Essential fields to extract:
+
+formalityLevel (single score)
+preferredGreeting (most common greeting)
+commonClosings (2-3 most frequent closings)
+avgEmailLength (typical word count)
+warmthLevel and directnessLevel (personality indicators)
+relationshipOverrides (only if significantly different from default)
+
+2. Smart Context Selection Logic
+Build logic to determine what context to send based on email type:
+For NEW email threads:
+- Condensed user profile
+- Sender relationship type (colleague/client/etc)
+- The incoming email to respond to
+- Skip historical email examples
+For EXISTING email threads:
+- Condensed user profile
+- Last 2-3 emails from the current thread
+- Skip general relationship context (thread context is better)
+3. Dynamic Prompt Builder
+Create a prompt generation system that builds optimized prompts:
+New Thread Prompt Structure:
+User Communication Style:
+- Formality: [score]/10 
+- Preferred greeting: "[greeting style]"
+- Typical closing: "[closing style]"  
+- Email length: ~[X] words
+- Tone: [warmth level] warmth, [directness level] directness
+
+Relationship: [colleague/client/boss/etc]
+
+Email to respond to:
+[incoming email content]
+
+Generate a response matching this user's established communication style:
+Existing Thread Prompt Structure:
+User Communication Style: [condensed profile]
+
+Recent conversation history:
+[last 2-3 emails in thread]
+
+New email to respond to:
+[incoming email content]
+
+Continue this conversation matching the user's tone and the established thread context:
+4. Relationship Context Detection
+Implement logic to:
+
+Identify sender relationship type from email domain/history
+Apply relationship-specific style overrides when they significantly differ from default
+Default to general profile when relationship is unknown
+
+5. Token Optimization Targets
+Current state: Full profile = ~2000+ tokens per request
+Target state: Optimized context = ~200-300 tokens per request
+Expected reduction: 85-90% fewer tokens sent to LLM
+Implementation Priority
+Phase 1: Basic Context Condensation
+
+Extract the 5-7 most important style indicators from full profile
+Build basic prompt templates for new vs. existing threads
+
+Phase 2: Smart Context Selection
+
+Add logic to detect thread vs. new email scenarios
+Implement relationship-specific overrides
+
+Phase 3: Optimization & Testing
+
+A/B test condensed vs. full context to validate quality
+Monitor token usage reduction
+Fine-tune which profile elements have highest impact
+
+Expected Outcome
+
+Dramatically reduced API costs (85-90% token reduction)
+Faster response generation
+Maintained personalization quality
+Scalable system that works efficiently with growing user base
+
+Technical Notes
+
+Store full profile in database for learning/updates
+Only send condensed profile to LLM for response generation
+Cache condensed profiles to avoid repeated processing
+Build this as a separate service/module that sits between profile storage and LLM calls
+
+This optimization is critical for making the system cost-effective and scalable while maintaining the personalized response quality that differentiates our email agent. 

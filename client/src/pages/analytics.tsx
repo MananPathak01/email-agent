@@ -1,7 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Sidebar from "@/components/sidebar";
 import { 
   BarChart3, 
@@ -11,269 +14,374 @@ import {
   CheckSquare,
   Users,
   Calendar,
-  Activity
+  Activity,
+  Zap,
+  Target,
+  Download,
+  Filter,
+  ArrowUp,
+  ArrowDown,
+  Minus
 } from "lucide-react";
-
-// Mock user ID for demo - in real app this would come from authentication
-const CURRENT_USER_ID = 1;
+import { useAnalytics, useConnectedAccounts, useWorkflowTemplates } from "@/hooks/useMockApi";
 
 export default function AnalyticsPage() {
-  const { data: analytics, isLoading } = useQuery({
-    queryKey: ['/api/analytics/dashboard'],
-    queryFn: async () => {
-      const response = await fetch('/api/analytics/dashboard?userId=1');
-      if (!response.ok) throw new Error('Failed to fetch analytics');
-      return response.json();
-    }
-  });
+  const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month' | 'quarter'>('week');
+  const { analytics, loading } = useAnalytics(timeframe);
+  const { accounts } = useConnectedAccounts();
+  const { workflows } = useWorkflowTemplates();
 
-  const { data: emails = [] } = useQuery({
-    queryKey: ['/api/emails'],
-    queryFn: async () => {
-      const response = await fetch('/api/emails?userId=1');
-      if (!response.ok) throw new Error('Failed to fetch emails');
-      return response.json();
-    }
-  });
-
-  const { data: tasks = [] } = useQuery({
-    queryKey: ['/api/tasks'],
-    queryFn: async () => {
-      const response = await fetch('/api/tasks?userId=1');
-      if (!response.ok) throw new Error('Failed to fetch tasks');
-      return response.json();
-    }
-  });
-
-  if (isLoading || !analytics) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading analytics...</div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
-  // Calculate additional metrics
-  const completionRate = tasks.length > 0 ? (tasks.filter((t: any) => t.status === 'completed').length / tasks.length) * 100 : 0;
-  const responseRate = emails.length > 0 ? (emails.filter((e: any) => e.status === 'processed').length / emails.length) * 100 : 0;
-  
-  // Email categories distribution
-  const categoryData = emails.reduce((acc: any, email: any) => {
-    if (email.category) {
-      acc[email.category] = (acc[email.category] || 0) + 1;
-    }
-    return acc;
-  }, {});
+  if (!analytics) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">No analytics data available</div>
+      </div>
+    );
+  }
 
-  // Priority distribution
-  const priorityData = emails.reduce((acc: any, email: any) => {
-    acc[email.priority] = (acc[email.priority] || 0) + 1;
-    return acc;
-  }, {});
+  const getTrendIcon = (current: number, previous: number) => {
+    if (current > previous) return <ArrowUp className="h-4 w-4 text-green-500" />;
+    if (current < previous) return <ArrowDown className="h-4 w-4 text-red-500" />;
+    return <Minus className="h-4 w-4 text-gray-500" />;
+  };
+
+  const getTrendColor = (current: number, previous: number) => {
+    if (current > previous) return 'text-green-600';
+    if (current < previous) return 'text-red-600';
+    return 'text-gray-600';
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar Navigation */}
-      <Sidebar userId={CURRENT_USER_ID} />
+      <Sidebar />
       
       {/* Main Content */}
       <div className="flex-1 bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Analytics Dashboard</h1>
-            <p className="text-gray-600 mt-1">Monitor your onboarding workflow performance</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Badge variant="outline" className="text-sm">
-              Last 30 days
-            </Badge>
+        {/* Header */}
+        <div className="border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
+                <BarChart3 className="h-6 w-6" />
+                Analytics Dashboard
+              </h1>
+              <p className="text-gray-600 mt-1">Monitor your AI email workforce performance and insights</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Select value={timeframe} onValueChange={(value: any) => setTimeframe(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="quarter">This Quarter</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-6">
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Emails</p>
-                  <p className="text-3xl font-bold">{analytics.totalEmails}</p>
-                  <p className="text-blue-100 text-sm mt-1">
-                    {analytics.onboardingEmails} onboarding
-                  </p>
-                </div>
-                <Mail className="h-12 w-12 text-blue-200" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm font-medium">Tasks Created</p>
-                  <p className="text-3xl font-bold">{tasks.length}</p>
-                  <p className="text-green-100 text-sm mt-1">
-                    {tasks.filter((t: any) => t.status === 'completed').length} completed
-                  </p>
-                </div>
-                <CheckSquare className="h-12 w-12 text-green-200" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm font-medium">Response Time</p>
-                  <p className="text-3xl font-bold">{analytics.averageResponseTime}h</p>
-                  <p className="text-orange-100 text-sm mt-1">average</p>
-                </div>
-                <Clock className="h-12 w-12 text-orange-200" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">Processed Today</p>
-                  <p className="text-3xl font-bold">{analytics.processedToday}</p>
-                  <p className="text-purple-100 text-sm mt-1">emails</p>
-                </div>
-                <Activity className="h-12 w-12 text-purple-200" />
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Completion Rates</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Task Completion</span>
-                    <span className="text-sm font-bold text-gray-900">{completionRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={completionRate} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Email Response Rate</span>
-                    <span className="text-sm font-bold text-gray-900">{responseRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={responseRate} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Onboarding Coverage</span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {analytics.totalEmails > 0 ? ((analytics.onboardingEmails / analytics.totalEmails) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                  <Progress value={analytics.totalEmails > 0 ? (analytics.onboardingEmails / analytics.totalEmails) * 100 : 0} className="h-2" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-              
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
-                  <CheckSquare className="h-5 w-5 text-green-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">Task Completed</p>
-                    <p className="text-xs text-gray-500">Setup Equipment for John Anderson</p>
-                  </div>
-                  <span className="text-xs text-gray-500">2h ago</span>
-                </div>
-                
-                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <Mail className="h-5 w-5 text-blue-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">Email Processed</p>
-                    <p className="text-xs text-gray-500">Orientation Schedule Email</p>
-                  </div>
-                  <span className="text-xs text-gray-500">4h ago</span>
-                </div>
-                
-                <div className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-orange-600" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">Response Generated</p>
-                    <p className="text-xs text-gray-500">Paperwork Requirements Response</p>
-                  </div>
-                  <span className="text-xs text-gray-500">6h ago</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Category & Priority Distribution */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Categories</h3>
-              
-              <div className="space-y-3">
-                {Object.entries(categoryData).map(([category, count]) => (
-                  <div key={category} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-gray-700 capitalize">{category}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-bold text-gray-900">{count as number}</span>
-                      <div className="w-16 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full" 
-                          style={{ width: `${((count as number) / emails.length) * 100}%` }}
-                        ></div>
+        <ScrollArea className="flex-1">
+          <div className="p-6 space-y-6">
+            {/* Key Performance Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Emails</p>
+                      <p className="text-3xl font-bold text-gray-900">{analytics.emailMetrics.totalEmails}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        {getTrendIcon(analytics.emailMetrics.totalEmails, 35)}
+                        <span className={`text-xs ${getTrendColor(analytics.emailMetrics.totalEmails, 35)}`}>
+                          vs last {timeframe}
+                        </span>
                       </div>
                     </div>
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Mail className="h-6 w-6 text-blue-600" />
+                    </div>
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">AI Drafts Generated</p>
+                      <p className="text-3xl font-bold text-gray-900">{analytics.aiPerformance.draftsGenerated}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        {getTrendIcon(analytics.aiPerformance.draftsGenerated, 5)}
+                        <span className={`text-xs ${getTrendColor(analytics.aiPerformance.draftsGenerated, 5)}`}>
+                          vs last {timeframe}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                      <Zap className="h-6 w-6 text-yellow-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Time Saved</p>
+                      <p className="text-3xl font-bold text-gray-900">{analytics.aiPerformance.timeSaved}h</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        {getTrendIcon(analytics.aiPerformance.timeSaved, 1.8)}
+                        <span className={`text-xs ${getTrendColor(analytics.aiPerformance.timeSaved, 1.8)}`}>
+                          vs last {timeframe}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Clock className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">AI Accuracy</p>
+                      <p className="text-3xl font-bold text-gray-900">{Math.round(analytics.aiPerformance.averageConfidence * 100)}%</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        {getTrendIcon(analytics.aiPerformance.averageConfidence * 100, 78)}
+                        <span className={`text-xs ${getTrendColor(analytics.aiPerformance.averageConfidence * 100, 78)}`}>
+                          vs last {timeframe}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Target className="h-6 w-6 text-purple-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Distribution</h3>
-              
-              <div className="space-y-3">
-                {Object.entries(priorityData).map(([priority, count]) => {
-                  const colors = {
-                    high: 'bg-red-500',
-                    medium: 'bg-yellow-500',
-                    low: 'bg-green-500'
-                  };
+            {/* AI Performance Trends */}
+            <Card>
+              <CardHeader>
+                <CardTitle>AI Performance Trends</CardTitle>
+                <CardDescription>Track your AI accuracy and improvement over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Draft Acceptance Rate</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {Math.round((analytics.aiPerformance.draftsAccepted / analytics.aiPerformance.draftsGenerated) * 100)}%
+                      </span>
+                    </div>
+                    <Progress value={(analytics.aiPerformance.draftsAccepted / analytics.aiPerformance.draftsGenerated) * 100} className="h-3" />
+                  </div>
                   
-                  return (
-                    <div key={priority} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${colors[priority as keyof typeof colors] || 'bg-gray-500'}`}></div>
-                        <span className="text-sm font-medium text-gray-700 capitalize">{priority} Priority</span>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">User Satisfaction</span>
+                      <span className="text-sm font-bold text-gray-900">{analytics.aiPerformance.userSatisfactionRating}/5</span>
+                    </div>
+                    <Progress value={(analytics.aiPerformance.userSatisfactionRating / 5) * 100} className="h-3" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Learning Improvement</span>
+                      <span className="text-sm font-bold text-gray-900">+{Math.round(analytics.aiPerformance.improvementRate * 100)}%</span>
+                    </div>
+                    <Progress value={analytics.aiPerformance.improvementRate * 100} className="h-3" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Email Categories and Workflow Performance */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email Categories</CardTitle>
+                  <CardDescription>Distribution of email types processed</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {analytics.emailMetrics.emailsByCategory.map((category) => (
+                      <div key={category.category} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${
+                            category.category === 'onboarding' ? 'bg-blue-500' :
+                            category.category === 'support' ? 'bg-green-500' :
+                            category.category === 'sales' ? 'bg-purple-500' :
+                            category.category === 'meeting' ? 'bg-orange-500' :
+                            'bg-gray-500'
+                          }`} />
+                          <span className="text-sm font-medium text-gray-700 capitalize">{category.category}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-gray-900">{category.count}</span>
+                          <div className="w-20 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                category.category === 'onboarding' ? 'bg-blue-500' :
+                                category.category === 'support' ? 'bg-green-500' :
+                                category.category === 'sales' ? 'bg-purple-500' :
+                                category.category === 'meeting' ? 'bg-orange-500' :
+                                'bg-gray-500'
+                              }`}
+                              style={{ width: `${(category.count / analytics.emailMetrics.totalEmails) * 100}%` }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-bold text-gray-900">{count as number}</span>
-                        <div className="w-16 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${colors[priority as keyof typeof colors] || 'bg-gray-500'}`}
-                            style={{ width: `${((count as number) / emails.length) * 100}%` }}
-                          ></div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workflow Performance</CardTitle>
+                  <CardDescription>Success rates of your AI workflows</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {analytics.workflowMetrics.workflowSuccessRates.map((workflow) => (
+                      <div key={workflow.name} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">{workflow.name}</span>
+                          <span className="text-sm font-bold text-gray-900">{Math.round(workflow.rate * 100)}%</span>
+                        </div>
+                        <Progress value={workflow.rate * 100} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Connected Accounts Performance */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Connected Accounts Performance</CardTitle>
+                <CardDescription>AI performance across your connected email accounts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {accounts.map((account) => (
+                    <div key={account.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="text-2xl">
+                          {account.provider === 'gmail' ? '📧' : '📮'}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900">{account.displayName}</h4>
+                          <p className="text-sm text-gray-600">{account.email}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-6 text-center">
+                        <div>
+                          <div className="text-lg font-semibold text-gray-900">{account.processingStats.draftsGenerated}</div>
+                          <div className="text-xs text-gray-500">Drafts</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-green-600">{account.processingStats.draftsAccepted}</div>
+                          <div className="text-xs text-gray-500">Accepted</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-blue-600">
+                            {Math.round(account.processingStats.averageConfidence * 100)}%
+                          </div>
+                          <div className="text-xs text-gray-500">Accuracy</div>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Daily Email Volume Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Daily Email Volume</CardTitle>
+                <CardDescription>Email processing volume over the selected timeframe</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analytics.emailMetrics.dailyVolume.map((day) => (
+                    <div key={day.date} className="flex items-center gap-4">
+                      <div className="w-20 text-sm text-gray-600">
+                        {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-gray-700">{day.count} emails</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full" 
+                            style={{ width: `${(day.count / Math.max(...analytics.emailMetrics.dailyVolume.map(d => d.count))) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* User Engagement Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>User Engagement</CardTitle>
+                <CardDescription>How you're using the AI email workforce features</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{analytics.userEngagement.sessionDuration}m</div>
+                    <div className="text-sm text-gray-600">Avg Session</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{analytics.userEngagement.feedbackSubmissions}</div>
+                    <div className="text-sm text-gray-600">Feedback Given</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{Math.round(analytics.userEngagement.userRetention.find(r => r.period === 'Weekly')?.rate * 100 || 0)}%</div>
+                    <div className="text-sm text-gray-600">Weekly Retention</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{analytics.userEngagement.supportTickets}</div>
+                    <div className="text-sm text-gray-600">Support Tickets</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      </ScrollArea>
+        </ScrollArea>
       </div>
     </div>
   );

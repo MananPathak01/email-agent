@@ -1,0 +1,60 @@
+{
+  "userId": "JecPh5R1BBdqrTnO68wOZm1m4vl1",
+  "email": "pathakmanan5t@gmail.com",
+  "collectedAt": "2025-08-19T15:46:08.658Z",
+  "sentEmails": [
+    {
+      "threadId": "1933c27aeaa4daf4",
+      "from": "pathakmanan5t@gmail.com",
+      "to": "hello@hinge.co",
+      "subject": "Hi there, Thank you for reaching out. In order for us to complete our appeal investigation we kindly request you assist by verifying your identity... - Closing Ticket",
+      "body": "Hi, Sorry I missed this email. I just wanted to know why my account was\nsuspended. Thanks,\nManan On Sun, Nov 17, 2024 at 5:04 PM Hinge Support wrote:",
+      "wordCount": 29,
+      "threadContext": [
+        {
+          "from": "hello@hinge.co",
+          "to": "pathakmanan5t@gmail.com",
+          "subject": "Hi there, Thank you for reaching out. In order for us to complete our appeal investigation we kindly request you assist by verifying your identity... - Closing Ticket",
+          "body": "Please type your reply above this line👆 Hi , Since we have not heard back from you, we are going to close this ticket out. However, please feel free to reply directly to this ticket or contact us aga...",
+          "wordCount": 55
+        },
+        {
+          "from": "pathakmanan5t@gmail.com",
+          "to": "hello@hinge.co",
+          "subject": "Hi there, Thank you for reaching out. In order for us to complete our appeal investigation we kindly request you assist by verifying your identity... - Closing Ticket",
+          "body": "Hi, Sorry I missed this email. I just wanted to know why my account was\nsuspended. Thanks,\nManan On Sun, Nov 17, 2024 at 5:04 PM Hinge Support wrote:",
+          "wordCount": 29
+        }
+      ]
+    },
+    {
+      "threadId": "19330ee44858d78b",
+      "from": "pathakmanan5t@gmail.com",
+      "to": "csmaster@uwaterloo.ca,",
+      "subject": "Inquiry About MEng Computer Science Program Intake and Application Availability",
+      "body": "Dear Carly MacLeod, I hope this message finds you well. My name is Manan Pathak, and I am\ninterested in applying for the Master of Engineering (MEng) program in\nComputer Science at the University of Waterloo. I noticed on the program's\nwebsite that it offers start dates in spring, fall, and winter. However, I\nwas wondering if there are any available intakes earlier than the fall\nsession next year and if applications for those sessions are still open. I am highly motivated to begin the program as soon as possible, and I would\ngreatly appreciate any guidance or suggestions you can offer regarding this\nmatter. Thank you for your time and assistance. I look forward to your response. Best regards,\nManan Pathak",
+      "wordCount": 122,
+      "threadContext": [
+        {
+          "from": "pathakmanan5t@gmail.com",
+          "to": "csmaster@uwaterloo.ca,",
+          "subject": "Inquiry About MEng Computer Science Program Intake and Application Availability",
+          "body": "Dear Carly MacLeod, I hope this message finds you well. My name is Manan Pathak, and I am\ninterested in applying for the Master of Engineering (MEng) program in\nComputer Science at the University of W...",
+          "wordCount": 122
+        },
+        {
+          "from": "cs-gradoffice@uwaterloo.ca",
+          "to": "pathakmanan5t@gmail.com",
+          "subject": "Inquiry About MEng Computer Science Program Intake and Application Availability",
+          "body": "Hello Manan, Thank you for your inquiry about admission to the graduate program in Computer Science at the University of Waterloo! As noted on our Applying and Admissions page, the application deadlin...",
+          "wordCount": 227
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "sentCount": 2,
+    "contextCount": 4,
+    "totalProcessed": 2
+  }
+}

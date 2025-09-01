@@ -1,5 +1,6 @@
 // server/firebase-admin.ts
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // Helper function to safely get and format the private key
 function getPrivateKey() {
@@ -32,4 +33,4 @@ if (admin.apps.length === 0) {
 }
 
 export const adminAuth = admin.auth();
-export const adminDb = admin.firestore();
+export const adminDb = getFirestore();

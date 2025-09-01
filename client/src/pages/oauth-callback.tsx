@@ -36,8 +36,17 @@ export default function OAuthCallback() {
 
           if (response.ok) {
             const data = await response.json();
+            console.log('📧 OAuth callback received data:', data);
+            
             if (window.opener) {
-              window.opener.postMessage({ type: 'oauth_success', data }, '*');
+              // Extract email from the account data and format it properly
+              const email = data.account?.email;
+              console.log('📤 Sending OAuth success message with email:', email);
+              
+              window.opener.postMessage({ 
+                type: 'oauth_success', 
+                data: { email, success: true, account: data.account } 
+              }, '*');
             }
             window.close();
           } else {

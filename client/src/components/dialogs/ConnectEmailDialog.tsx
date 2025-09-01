@@ -36,7 +36,7 @@ export const ConnectEmailDialog = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm"
       onClick={() => onOpenChange(false)}
     >
       <div 
@@ -73,7 +73,7 @@ export const ConnectEmailDialog = ({
             {isConnecting ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Connecting...
+                Connecting to Gmail...
               </>
             ) : (
               <>
@@ -89,7 +89,7 @@ export const ConnectEmailDialog = ({
             className="w-full justify-start h-12 text-base opacity-50 cursor-not-allowed"
           >
             <Mail className="w-5 h-5 mr-3" />
-            <span>Connect with Outlook (Coming soon)</span>
+            <span>Connect with Outlook (Coming Soon)</span>
           </Button>
         </div>
         

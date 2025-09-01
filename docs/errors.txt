@@ -1,0 +1,7 @@
+📧 Found Gmail account: pathakmanan5@gmail.com
+❌ Error saving profile to Firestore: TypeError: db.collection is not a function
+    at CommunicationProfileService.saveProfile (file:///X:/email-agent/server/services/communication-profile.service.ts:10:323)     
+    at performSimpleEmailLearning (file:///X:/email-agent/server/routes/gmail-learning-simple.routes.ts:1:3500)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Timeout._onTimeout (file:///X:/email-agent/server/routes/gmail-learning-simple.routes.ts:1:854)
+❌ Learning process failed: db.collection is not a function

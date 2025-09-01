@@ -17,6 +17,12 @@ if (missingVars.length > 0) {
 }
 
 async function main() {
+  const userEmail = process.argv[2];
+  if (!userEmail) {
+    console.error('❌ Please provide a user email address as an argument.');
+    console.log('Usage: npx tsx scripts/generateTestToken.ts <user-email>');
+    process.exit(1);
+  }
   try {
     console.log('Initializing Firebase Admin...');
     
@@ -37,29 +43,15 @@ async function main() {
     const auth = getAuth(app);
     console.log('✅ Firebase Admin initialized successfully');
 
-    // Test user details
-    const TEST_USER_ID = 'test-user-1';
-    const TEST_EMAIL = 'test@example.com';
-
-    // Create or get test user
+    // Get user by email
     let user;
     try {
-      user = await auth.getUser(TEST_USER_ID);
-      console.log(`Using existing test user: ${user.email}`);
+      console.log(`Looking up user by email: ${userEmail}...`);
+      user = await auth.getUserByEmail(userEmail);
+      console.log(`Found user: ${user.uid}`);
     } catch (error: any) {
-if (error.code === 'auth/user-not-found') {
-        console.log('Creating new test user...');
-        user = await auth.createUser({
-          uid: TEST_USER_ID,
-          email: TEST_EMAIL,
-          emailVerified: true,
-          password: 'test1234',
-          displayName: 'Test User',
-        });
-        console.log('Created test user:', user.email);
-      } else {
-        throw error;
-      }
+      console.error(`❌ Could not find user with email: ${userEmail}`);
+      throw error;
     }
 
     // Generate a custom token

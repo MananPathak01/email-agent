@@ -1,13 +1,66 @@
-node_modules
+# Dependencies
+node_modules/
 ./node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
+# Build outputs
+dist/
+build/
+server/public/
+
+# Environment variables (SENSITIVE)
 .env
 .env.local
 .env.development.local
-# Log files with potentially sensitive info
+.env.test.local
+.env.production.local
+
+# Firebase config (SENSITIVE)
+firebase-config.json
+serviceAccountKey.json
+firebase-adminsdk-*.json
+
+# Test scripts with tokens (SENSITIVE)
+scripts/test-draft-creation.js
+scripts/test-draft-creation.ts
+scripts/simple-draft-test.ts
+scripts/decrypt-tokens.ts
+scripts/add-test-tokens.js
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
 docs/erros.txt
+
+# IDE and OS files
+.DS_Store
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Archives
+*.tar.gz
+*.zip
+
+# Vite config variations
+vite.config.ts.*
+
+# Database dumps or backups
+*.sql
+*.db
+*.sqlite
+
+# Any files with 'secret', 'key', or 'token' in the name
+*secret*
+*key*
+*token*
+*credential*
+
+# Coverage reports
+coverage/
+.nyc_output/

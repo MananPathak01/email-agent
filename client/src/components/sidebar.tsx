@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { getAuth } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,10 +20,13 @@ import {
   DialogOverlay
 } from "@/components/ui/dialog";
 import { ConnectEmailDialog } from "./dialogs/ConnectEmailDialog";
+import { EmailLearningDialog } from "./dialogs/EmailLearningDialog";
+import { EmailContextDialog, EmailContext } from "./dialogs/EmailContextDialog";
+import { useCreateTestDraft } from "@/hooks/useGmailApi";
 import { 
   Mail, Plus, Loader2, Send, Inbox, 
   SendHorizonal, Trash, FileText, Settings, 
-  LogOut, ChevronDown, ChevronUp, Check, X, Bot 
+  LogOut, ChevronDown, ChevronUp, Check, X, Bot, MessageCircle, BarChart3, Edit
 } from "lucide-react";
 
 
@@ -54,8 +58,12 @@ export default function Sidebar() {
   const [location, setLocation] = useLocation();
   const [isAddEmailOpen, setIsAddEmailOpen] = useState(false);
   const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false);
+  const [isLearningDialogOpen, setIsLearningDialogOpen] = useState(false);
+  const [isContextDialogOpen, setIsContextDialogOpen] = useState(false);
+  const [connectedEmail, setConnectedEmail] = useState<string>('');
+  const [emailContext, setEmailContext] = useState<EmailContext | null>(null);
+  const { user, logout } = useAuth();
   const auth = getAuth();
-  const user = auth.currentUser;
   const queryClient = useQueryClient();
   const [newEmail, setNewEmail] = useState<NewEmailData>({
     subject: "",
@@ -65,26 +73,32 @@ export default function Sidebar() {
     toEmail: ""
   });
   const userId = user?.uid;
+  const { createTestDraft } = useCreateTestDraft();
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('🔍 Context dialog state changed:', { isContextDialogOpen, connectedEmail });
+  }, [isContextDialogOpen, connectedEmail]);
 
   // Navigation items - moved to useMemo or constant to prevent re-creation
   const navigationItems: NavigationItem[] = [
     {
-      id: "chat",
+      id: "dashboard",
       icon: Bot,
-      label: "Chat",
+      label: "Email Agent",
       path: "/dashboard"
     },
     {
       id: "emails",
-      icon: Inbox,
+      icon: Mail,
       label: "Emails",
       path: "/emails"
     },
     {
-      id: "tasks",
-      icon: FileText,
-      label: "Tasks",
-      path: "/tasks"
+      id: "chat",
+      icon: MessageCircle,
+      label: "Chat",
+      path: "/chat"
     }
   ];
 
@@ -102,9 +116,9 @@ export default function Sidebar() {
   } = useQuery<GmailAccount[]>({
     queryKey: ['gmailAccounts'],
     queryFn: async (): Promise<GmailAccount[]> => {
-      if (!user) return [];
+      if (!user || !auth.currentUser) return [];
       
-      const idToken = await user.getIdToken();
+      const idToken = await auth.currentUser.getIdToken();
       const response = await fetch('/api/gmail/accounts', {
         headers: { 
           'Authorization': `Bearer ${idToken}`,
@@ -120,7 +134,7 @@ export default function Sidebar() {
       
       return response.json();
     },
-    enabled: !!user,
+    enabled: !!user && !!auth.currentUser,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
@@ -129,13 +143,21 @@ export default function Sidebar() {
     }
   });
 
-  // Improved Gmail OAuth mutation with better error handling
+  // Improved Gmail OAuth mutation with popup handling
   const connectGmailMutation = useMutation({
     mutationFn: async (): Promise<void> => {
       if (!user) throw new Error('User not authenticated');
       
+      // Get the Firebase auth instance and current user
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      
+      if (!currentUser) {
+        throw new Error('No authenticated Firebase user found');
+      }
+      
       // Get the auth URL
-      const idToken = await user.getIdToken();
+      const idToken = await currentUser.getIdToken();
       const response = await fetch('/api/gmail/auth', {
         headers: { 
           'Authorization': `Bearer ${idToken}`,
@@ -154,18 +176,92 @@ export default function Sidebar() {
         throw new Error('No auth URL received from server');
       }
       
-      window.open(authUrl, '_blank');
+      // Open OAuth popup with better dimensions and positioning
+      const popup = window.open(
+        authUrl,
+        'gmail-oauth',
+        'width=500,height=600,scrollbars=yes,resizable=yes,left=' + 
+        (window.screen.width / 2 - 250) + ',top=' + (window.screen.height / 2 - 300)
+      );
+
+      return new Promise((resolve, reject) => {
+        // Listen for messages from the popup
+        const messageListener = (event: MessageEvent) => {
+          console.log('📨 Received message:', event.data);
+          // Allow messages from both frontend and backend origins
+          const allowedOrigins = [
+            window.location.origin, // http://localhost:5173 (frontend)
+            'http://localhost:5000', // backend server
+            'http://localhost:3001'  // alternative backend port
+          ];
+          
+          if (!allowedOrigins.includes(event.origin)) {
+            console.log('❌ Message origin not allowed:', event.origin, 'allowed:', allowedOrigins);
+            return;
+          }
+          
+          if (event.data.type === 'oauth_success') {
+            window.removeEventListener('message', messageListener);
+            if (popup && !popup.closed) {
+              popup.close();
+            }
+            // Extract the Gmail email address from the callback data
+                        const gmailEmail = event.data.data?.email;
+            if (gmailEmail) {
+              setConnectedEmail(gmailEmail);
+              // Open learning dialog immediately, skipping context
+              setTimeout(() => {
+                setIsLearningDialogOpen(true);
+              }, 100);
+            }
+            resolve();
+          } else if (event.data.type === 'oauth_error') {
+            window.removeEventListener('message', messageListener);
+            if (popup && !popup.closed) {
+              popup.close();
+            }
+            reject(new Error(event.data.error || 'OAuth failed'));
+          }
+        };
+
+        window.addEventListener('message', messageListener);
+
+        // Fallback: check if popup is closed manually
+        const checkClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageListener);
+            resolve();
+          }
+        }, 1000);
+
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+          reject(new Error('OAuth timeout'));
+        }, 300000);
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gmailAccounts'] });
-      toast.success('Successfully connected Gmail account');
+      toast.success('Gmail account connected successfully!');
       setIsConnectDialogOpen(false);
+      
+      // Context dialog is now opened in the message listener after email is captured
+      
+      // Refresh accounts immediately
+      queryClient.invalidateQueries({ queryKey: ['gmailAccounts'] });
     },
     onError: (error: Error) => {
       console.error('Gmail connection error:', error);
       toast.error(error.message || 'Failed to connect Gmail account');
     },
   });
+
+
 
   // Add email mutation
   const addEmailMutation = useMutation({
@@ -206,6 +302,18 @@ export default function Sidebar() {
     },
   });
 
+  // Test draft mutation
+  const testDraftMutation = useMutation({
+    mutationFn: createTestDraft,
+    onSuccess: (data) => {
+      toast.success(data.message || 'Test draft created successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Test draft error:', error);
+      toast.error(error.message || 'Failed to create test draft');
+    },
+  });
+
   // Memoized handlers to prevent unnecessary re-renders
   const handleNavigate = useCallback((path: string) => {
     setLocation(path);
@@ -236,15 +344,32 @@ export default function Sidebar() {
     }
   }, [connectGmailMutation]);
 
+  const handleCreateTestDraft = useCallback(async (accountEmail: string) => {
+    try {
+      await testDraftMutation.mutateAsync(
+        accountEmail, // to
+        `Test Draft - ${new Date().toLocaleString()}`, // subject
+        `Hello!\n\nThis is a test draft created for the Gmail account: ${accountEmail}\n\nCreated at: ${new Date().toLocaleString()}\n\nBest regards,\nAI Email Agent` // content
+      );
+    } catch (error) {
+      console.error('Create test draft error:', error);
+      if (error.message?.includes('AUTH_EXPIRED')) {
+        toast.error('Gmail authentication expired. Please reconnect your Gmail account.');
+      } else {
+        toast.error(`Failed to create test draft: ${error.message}`);
+      }
+    }
+  }, [testDraftMutation, toast]);
+
   const handleSignOut = useCallback(async () => {
     try {
-      await auth.signOut();
+      await logout();
       setLocation('/login');
     } catch (error) {
       console.error('Error signing out:', error);
       toast.error('Failed to sign out. Please try again.');
     }
-  }, [auth, setLocation, toast]);
+  }, [logout, setLocation, toast]);
 
   const handleCloseAddEmail = useCallback(() => {
     setIsAddEmailOpen(false);
@@ -349,6 +474,20 @@ export default function Sidebar() {
                   <p className="text-sm font-medium text-gray-900 truncate">{account.email}</p>
                   <p className="text-xs text-gray-500">Gmail</p>
                 </div>
+                <Button
+                  onClick={() => handleCreateTestDraft(account.email)}
+                  disabled={testDraftMutation.isPending}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
+                  title="Create test draft"
+                >
+                  {testDraftMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Edit className="h-3 w-3" />
+                  )}
+                </Button>
               </div>
             ))
           ) : (
@@ -362,6 +501,20 @@ export default function Sidebar() {
           >
             <Plus className="h-4 w-4 mr-2" />
             Connect Email
+          </Button>
+          
+          {/* Temporary debug button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-1 text-xs"
+            onClick={() => {
+              console.log('🧪 Force opening context dialog');
+              setConnectedEmail('debug@test.com');
+              setIsContextDialogOpen(true);
+            }}
+          >
+            Debug: Open Context
           </Button>
         </div>
       </div>
@@ -411,6 +564,35 @@ export default function Sidebar() {
         onOpenChange={setIsConnectDialogOpen}
         onConnectGmail={handleConnectGmail}
         isConnecting={connectGmailMutation.isPending}
+      />
+
+      {/* Email Context Dialog */}
+      <EmailContextDialog
+        open={isContextDialogOpen}
+        onOpenChange={setIsContextDialogOpen}
+        onComplete={(context) => {
+          console.log('✅ Context completed:', context);
+          setEmailContext(context);
+          setIsContextDialogOpen(false);
+          setIsLearningDialogOpen(true);
+        }}
+        userEmail={connectedEmail}
+      />
+
+      {/* Email Learning Dialog */}
+      <EmailLearningDialog
+        open={isLearningDialogOpen}
+        onOpenChange={(open) => {
+          setIsLearningDialogOpen(open);
+          if (!open) {
+            // Refresh the page when learning dialog closes
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          }
+        }}
+        userEmail={connectedEmail}
+        emailContext={emailContext}
       />
 
       {/* Add Email Dialog */}

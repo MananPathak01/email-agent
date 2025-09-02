@@ -25,8 +25,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 
-// Register your existing routes
-registerRoutes(app);
+// Register your existing routes (without WebSocket server)
+registerRoutes(app).catch(console.error);
 
 // Export the Express app as a Vercel function
 export default(req : VercelRequest, res : VercelResponse) => {

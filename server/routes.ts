@@ -78,33 +78,14 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
     // Rest of your existing routes...
     const httpServer = createServer(app);
 
-    // WebSocket setup for real-time updates
-    const wss = new WebSocketServer({server: httpServer, path: '/ws'});
+    // Note: WebSocket functionality disabled for Vercel serverless deployment
+    // Real-time updates would need to be implemented using polling or Server-Sent Events
 
-    const connectedClients = new Map<string, WebSocket>();
-
-    wss.on('connection', (ws : WebSocket) => {
-        const clientId = Math.random().toString(36).substring(7);
-        connectedClients.set(clientId, ws);
-
-        ws.on('close', () => {
-            connectedClients.delete(clientId);
-        });
-
-        ws.on('error', (error) => {
-            console.error('WebSocket error:', error);
-            connectedClients.delete(clientId);
-        });
-    });
-
-    // Broadcast to all connected clients
+    // Broadcast function (no-op for serverless)
     const broadcast = (data : any) => {
-        const message = JSON.stringify(data);
-        connectedClients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(message);
-            }
-        });
+        // In serverless environment, we can't maintain persistent connections
+        // Consider using database-based notifications or polling instead
+        console.log('Broadcast attempted (disabled in serverless):', data);
     };
 
     // Gmail account routes

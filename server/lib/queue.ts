@@ -12,7 +12,7 @@ const redisConfig = {
 };
 
 // Create Redis connection (optional)
-export let redis: Redis | null = null;
+export let redis: Redis |null = null;
 
 // Only try to connect to Redis if explicitly enabled
 if (process.env.REDIS_ENABLED === 'true') {
@@ -48,9 +48,9 @@ export interface LearningJob {
 }
 
 // Create queues (only if Redis is available)
-export let emailProcessingQueue: Queue < EmailProcessingJob > | null = null;
-export let draftGenerationQueue: Queue < DraftGenerationJob > | null = null;
-export let learningQueue: Queue < LearningJob > | null = null;
+export let emailProcessingQueue: Queue<EmailProcessingJob> |null = null;
+export let draftGenerationQueue: Queue<DraftGenerationJob> |null = null;
+export let learningQueue: Queue<LearningJob> |null = null;
 
 if (redis) {
     emailProcessingQueue = new Queue<EmailProcessingJob>('email-processing', {
@@ -94,7 +94,7 @@ if (redis) {
 }
 
 // Job processing functions
-export async function processEmailJob(job : Job < EmailProcessingJob >) {
+export async function processEmailJob(job: Job<EmailProcessingJob>) {
     const {emailId, userId, provider, emailData} = job.data;
 
     try {
@@ -172,7 +172,7 @@ export async function processEmailJob(job : Job < EmailProcessingJob >) {
     }
 }
 
-export async function processDraftGenerationJob(job : Job < DraftGenerationJob >) {
+export async function processDraftGenerationJob(job: Job<DraftGenerationJob>) {
     const {emailId, userId, emailAnalysis, userContext} = job.data;
 
     try {
@@ -228,7 +228,7 @@ export async function processDraftGenerationJob(job : Job < DraftGenerationJob >
     }
 }
 
-export async function processLearningJob(job : Job < LearningJob >) {
+export async function processLearningJob(job: Job<LearningJob>) {
     const {userId, accountId} = job.data;
 
     try {
@@ -255,7 +255,7 @@ export async function processLearningJob(job : Job < LearningJob >) {
         const refreshToken = decrypt(account.refreshToken);
 
         // Initialize Gmail service with decrypted tokens
-        const gmailService = new GmailService(accessToken, refreshToken);
+        const gmailService = new GmailService();
         const historicalEmails = await gmailService.getHistoricalEmailsForLearning(userId, 1000);
 
         console.log(`Fetched ${
@@ -278,9 +278,9 @@ export async function processLearningJob(job : Job < LearningJob >) {
 }
 
 // Create workers (only if Redis is available)
-export let emailProcessingWorker: Worker < EmailProcessingJob > | null = null;
-export let draftGenerationWorker: Worker < DraftGenerationJob > | null = null;
-export let learningWorker: Worker < LearningJob > | null = null;
+export let emailProcessingWorker: Worker<EmailProcessingJob> |null = null;
+export let draftGenerationWorker: Worker<DraftGenerationJob> |null = null;
+export let learningWorker: Worker<LearningJob> |null = null;
 
 if (redis && emailProcessingQueue && draftGenerationQueue && learningQueue) {
     emailProcessingWorker = new Worker<EmailProcessingJob>('email-processing', processEmailJob, {
@@ -369,25 +369,27 @@ process.on('SIGINT', async () => {
 });
 
 // Helper functions for adding jobs
-export async function addEmailProcessingJob(data : EmailProcessingJob) {
+export async function addEmailProcessingJob(data: EmailProcessingJob) {
     if (emailProcessingQueue) {
         return await emailProcessingQueue.add('process-email', data, {
             priority: data.emailData.urgency === 'high' ? 1 : data.emailData.urgency === 'medium' ? 2 : 3
         });
     } else { // Process immediately if no queue available
-        return await processEmailJob({data} as any);
+        return await processEmailJob({data}
+        as any);
     }
 }
 
-export async function addDraftGenerationJob(data : DraftGenerationJob) {
+export async function addDraftGenerationJob(data: DraftGenerationJob) {
     if (draftGenerationQueue) {
         return await draftGenerationQueue.add('generate-draft', data);
     } else { // Process immediately if no queue available
-        return await processDraftGenerationJob({data} as any);
+        return await processDraftGenerationJob({data}
+        as any);
     }
 }
 
-export async function addLearningJob(data : LearningJob) {
+export async function addLearningJob(data: LearningJob) {
     if (learningQueue) {
         return await learningQueue.add('process-learning', data, {
             delay: 5000 // Delay learning jobs to not overwhelm the system
@@ -395,7 +397,8 @@ export async function addLearningJob(data : LearningJob) {
     } else { // Process immediately if no queue available (with error handling)
         setTimeout(async () => {
             try {
-                await processLearningJob({data} as any);
+                await processLearningJob({data}
+                as any);
             } catch (error) {
                 console.error('Error in immediate learning job processing:', error);
                 // Don't crash the server - just log the error

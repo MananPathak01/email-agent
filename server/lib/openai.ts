@@ -1,47 +1,41 @@
 import OpenAI from 'openai';
 
 // Support multiple AI providers
-const aiProvider = process.env.AI_PROVIDER || 'openai'; // 'openai', 'groq', 'local'
+const aiProvider = process.env.AI_PROVIDER || 'openai';
+// 'openai', 'groq', 'local'
 
 // Configuration for different providers
 const getAIConfig = () => {
-  switch (aiProvider) {
-    case 'groq':
-      if (!process.env.GROQ_API_KEY) {
-        throw new Error('GROQ_API_KEY environment variable is required when using Groq');
-      }
-      return {
-        apiKey: process.env.GROQ_API_KEY,
-        baseURL: 'https://api.groq.com/openai/v1',
-        model: process.env.GROQ_MODEL || 'llama-3.1-70b-versatile' // or 'llama-3.1-8b-instant'
-      };
-    
-    case 'local':
-      return {
-        apiKey: 'ollama',
-        baseURL: process.env.LOCAL_MODEL_URL || 'http://localhost:11434/v1',
-        model: process.env.LOCAL_MODEL || 'llama3.1:8b'
-      };
-    
-    case 'openai':
-    default:
-      if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY environment variable is required when using OpenAI');
-      }
-      return {
-        apiKey: process.env.OPENAI_API_KEY,
-        baseURL: undefined,
-        model: 'gpt-4o'
-      };
-  }
+    switch (aiProvider) {
+        case 'groq':
+            if (!process.env.GROQ_API_KEY) {
+                throw new Error('GROQ_API_KEY environment variable is required when using Groq');
+            }
+            return {
+                apiKey: process.env.GROQ_API_KEY,
+                baseURL: 'https://api.groq.com/openai/v1',
+                model: process.env.GROQ_MODEL || 'llama-3.1-70b-versatile' // or 'llama-3.1-8b-instant'
+            };
+
+        case 'local':
+            return {
+                apiKey: 'ollama',
+                baseURL: process.env.LOCAL_MODEL_URL || 'http://localhost:11434/v1',
+                model: process.env.LOCAL_MODEL || 'llama3.1:8b'
+            };
+
+        case 'openai':
+        default:
+            if (!process.env.OPENAI_API_KEY) {
+                throw new Error('OPENAI_API_KEY environment variable is required when using OpenAI');
+            }
+            return {apiKey: process.env.OPENAI_API_KEY, baseURL: undefined, model: 'gpt-4o'};
+    }
 };
 
 const config = getAIConfig();
 
-export const openai = new OpenAI({
-  apiKey: config.apiKey,
-  baseURL: config.baseURL,
-});
+export const openai = new OpenAI({apiKey: config.apiKey, baseURL: config.baseURL});
 
 // Email analysis prompt templates
 export const EMAIL_ANALYSIS_PROMPT = `
@@ -102,49 +96,45 @@ Respond in JSON format:
 
 // Rate limiting and optimization
 const RATE_LIMIT = {
-  requests: 0,
-  resetTime: Date.now() + 60000, // Reset every minute
-  maxRequests: 25 // Stay well under Groq's 30/min limit
+    requests: 0,
+    resetTime: Date.now() + 60000, // Reset every minute
+    maxRequests: 25 // Stay well under Groq's 30/min limit
 };
 
 // Simple in-memory cache for email analysis
 const analysisCache = new Map<string, any>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-function getCacheKey(content: string): string {
-  // Create a simple hash of the email content
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString();
+function getCacheKey(content: string): string { // Create a simple hash of the email content
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString();
 }
 
 function getCachedAnalysis(emailContent: string) {
-  const key = getCacheKey(emailContent);
-  const cached = analysisCache.get(key);
-  
-  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-    return cached.analysis;
-  }
-  
-  return null;
+    const key = getCacheKey(emailContent);
+    const cached = analysisCache.get(key);
+
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        return cached.analysis;
+    }
+
+    return null;
 }
 
 function setCachedAnalysis(emailContent: string, analysis: any) {
-  const key = getCacheKey(emailContent);
-  analysisCache.set(key, {
-    analysis,
-    timestamp: Date.now()
-  });
-  
-  // Clean old cache entries periodically
-  if (analysisCache.size > 1000) {
-    const cutoff = Date.now() - CACHE_TTL;
-    for (const [k, v] of analysisCache.entries()) {
-      if (v.timestamp < cutoff) {
+    const key = getCacheKey(emailContent);
+    analysisCache.set(key, {analysis, timestamp: Date.now()});
+
+    // Clean old cache entries periodically
+    if (analysisCache.size > 1000) {
+        const cutoff = Date.now() - CACHE_TTL;
+        for (const [k, v] of analysisCache.entries()) {
+            if (v.timestamp<cutoff) {
         analysisCache.delete(k);
       }
     }
@@ -153,207 +143,202 @@ function setCachedAnalysis(emailContent: string, analysis: any) {
 
 function checkRateLimit() {
   const now = Date.now();
-  if (now > RATE_LIMIT.resetTime) {
-    RATE_LIMIT.requests = 0;
-    RATE_LIMIT.resetTime = now + 60000;
-  }
-  
-  if (RATE_LIMIT.requests >= RATE_LIMIT.maxRequests) {
-    throw new Error('Rate limit exceeded. Please wait a moment.');
-  }
-  
-  RATE_LIMIT.requests++;
-}
+  if (now>RATE_LIMIT.resetTime) {
+                RATE_LIMIT.requests = 0;
+                RATE_LIMIT.resetTime = now + 60000;
+            }
 
-function optimizeEmailContent(emailContent: string): string {
-  // Truncate very long emails to save tokens
-  const maxLength = 2000; // ~500 tokens
-  if (emailContent.length > maxLength) {
-    return emailContent.substring(0, maxLength) + '\n[Email truncated for analysis]';
-  }
-  return emailContent;
-}
+            if (RATE_LIMIT.requests >= RATE_LIMIT.maxRequests) {
+                throw new Error('Rate limit exceeded. Please wait a moment.');
+            }
 
-// Helper functions for AI operations
-export async function analyzeEmail(emailContent: string) {
-  try {
-    // Check cache first
-    const cached = getCachedAnalysis(emailContent);
-    if (cached) {
-      console.log('📋 Using cached email analysis');
-      return cached;
-    }
-    
-    // Check rate limits
-    checkRateLimit();
-    
-    // Optimize content to save tokens
-    const optimizedContent = optimizeEmailContent(emailContent);
-    
-    console.log(`🤖 Analyzing email with Groq (${optimizedContent.length} chars)`);
-    
-    const response = await openai.chat.completions.create({
-      model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an email analysis API. You MUST respond with ONLY valid JSON, no additional text or explanation.'
-        },
-        {
-          role: 'user',
-          content: EMAIL_ANALYSIS_PROMPT.replace('{email_content}', optimizedContent)
+            RATE_LIMIT.requests ++;
         }
-      ],
-      temperature: 0.3,
-      max_tokens: 1000
-    });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from AI');
-    }
-
-    // Clean the response to extract JSON
-    let jsonContent = content.trim();
-    
-    // Remove any markdown code blocks
-    if (jsonContent.startsWith('```json')) {
-      jsonContent = jsonContent.replace(/```json\n?/, '').replace(/\n?```$/, '');
-    } else if (jsonContent.startsWith('```')) {
-      jsonContent = jsonContent.replace(/```\n?/, '').replace(/\n?```$/, '');
-    }
-    
-    // Find JSON object if there's extra text
-    const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      jsonContent = jsonMatch[0];
-    }
-
-    try {
-      const analysis = JSON.parse(jsonContent);
-      
-      // Cache the successful analysis
-      setCachedAnalysis(emailContent, analysis);
-      
-      return analysis;
-    } catch (parseError) {
-      console.error('Failed to parse JSON response:', jsonContent);
-      throw new Error(`Invalid JSON response: ${parseError}`);
-    }
-  } catch (error) {
-    console.error('Error analyzing email:', error);
-    throw error;
-  }
-}
-
-export async function generateResponse(
-  emailAnalysis: any,
-  originalEmail: string,
-  communicationStyle: any,
-  similarResponses: any[],
-  workflowTemplate?: any
-) {
-  try {
-    const prompt = RESPONSE_GENERATION_PROMPT
-      .replace('{email_analysis}', JSON.stringify(emailAnalysis))
-      .replace('{original_email}', originalEmail)
-      .replace('{communication_style}', JSON.stringify(communicationStyle))
-      .replace('{similar_responses}', JSON.stringify(similarResponses))
-      .replace('{workflow_template}', workflowTemplate ? JSON.stringify(workflowTemplate) : 'None');
-
-    const response = await openai.chat.completions.create({
-      model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert email writer. Generate professional, contextual email responses that match the user\'s communication style. Always respond with valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
+        function optimizeEmailContent(emailContent: string): string { // Truncate very long emails to save tokens
+            const maxLength = 2000; // ~500 tokens
+            if (emailContent.length > maxLength) {
+                return emailContent.substring(0, maxLength) + '\n[Email truncated for analysis]';
+            }
+            return emailContent;
         }
-      ],
-      temperature: 0.7,
-      max_tokens: 1500
-    });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from OpenAI');
-    }
+        // Helper functions for AI operations
+        export async function analyzeEmail(emailContent: string) {
+            try { // Check cache first
+                const cached = getCachedAnalysis(emailContent);
+                if (cached) {
+                    console.log('📋 Using cached email analysis');
+                    return cached;
+                }
 
-    return JSON.parse(content);
-  } catch (error) {
-    console.error('Error generating response:', error);
-    throw error;
-  }
-}
+                // Check rate limits
+                checkRateLimit();
 
-export async function generateEmbedding(text: string) {
-  try {
-    if (useLocalModel) {
-      // Use a free embedding service or simple text similarity
-      // For now, return a simple hash-based embedding
-      return generateSimpleEmbedding(text);
-    }
-    
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-3-large',
-      input: text,
-    });
+                // Optimize content to save tokens
+                const optimizedContent = optimizeEmailContent(emailContent);
 
-    return response.data[0].embedding;
-  } catch (error) {
-    console.error('Error generating embedding:', error);
-    throw error;
-  }
-}
+                console.log(`🤖 Analyzing email with Groq (${
+                    optimizedContent.length
+                } chars)`);
 
-// Simple embedding alternative for local use
-function generateSimpleEmbedding(text: string): number[] {
-  // Create a simple 384-dimensional embedding based on text characteristics
-  const words = text.toLowerCase().split(/\s+/);
-  const embedding = new Array(384).fill(0);
-  
-  // Use word frequency and position to create embedding
-  words.forEach((word, index) => {
-    const hash = simpleHash(word);
-    const pos = hash % 384;
-    embedding[pos] += 1 / (index + 1); // Weight by position
-  });
-  
-  // Normalize the embedding
-  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-  return embedding.map(val => magnitude > 0 ? val / magnitude : 0);
-}
+                const response = await openai.chat.completions.create({
+                    model: config.model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are an email analysis API. You MUST respond with ONLY valid JSON, no additional text or explanation.'
+                        }, {
+                            role: 'user',
+                            content: EMAIL_ANALYSIS_PROMPT.replace('{email_content}', optimizedContent)
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 1000
+                });
 
-function simpleHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
-}
+                const content = response.choices[0] ?. message ?. content;
+                if (! content) {
+                    throw new Error('No response from AI');
+                }
 
-// Simplified response generation without learning dependencies
-export async function generateSimpleResponse(emailAnalysis: any, emailData: any) {
-  try {
-    console.log(`🤖 Generating simple response for email analysis:`, emailAnalysis);
-    
-    const prompt = `
+                // Clean the response to extract JSON
+                let jsonContent = content.trim();
+
+                // Remove any markdown code blocks
+                if (jsonContent.startsWith('```json')) {
+                    jsonContent = jsonContent.replace(/```json\n?/, '').replace(/\n?```$/, '');
+                } else if (jsonContent.startsWith('```')) {
+                    jsonContent = jsonContent.replace(/```\n?/, '').replace(/\n?```$/, '');
+                }
+
+                // Find JSON object if there's extra text
+                const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    jsonContent = jsonMatch[0];
+                }
+
+                try {
+                    const analysis = JSON.parse(jsonContent);
+
+                    // Cache the successful analysis
+                    setCachedAnalysis(emailContent, analysis);
+
+                    return analysis;
+                } catch (parseError) {
+                    console.error('Failed to parse JSON response:', jsonContent);
+                    throw new Error(`Invalid JSON response: ${parseError}`);
+                }
+            } catch (error) {
+                console.error('Error analyzing email:', error);
+                throw error;
+            }
+        }
+
+        export async function generateResponse(emailAnalysis: any, originalEmail: string, communicationStyle: any, similarResponses: any[], workflowTemplate ?:any) {
+            try {
+                const prompt = RESPONSE_GENERATION_PROMPT.replace('{email_analysis}', JSON.stringify(emailAnalysis)).replace('{original_email}', originalEmail).replace('{communication_style}', JSON.stringify(communicationStyle)).replace('{similar_responses}', JSON.stringify(similarResponses)).replace('{workflow_template}', workflowTemplate ? JSON.stringify(workflowTemplate) : 'None');
+
+                const response = await openai.chat.completions.create({
+                    model: config.model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are an expert email writer. Generate professional, contextual email responses that match the user\'s communication style. Always respond with valid JSON.'
+                        }, {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1500
+                });
+
+                const content = response.choices[0] ?. message ?. content;
+                if (! content) {
+                    throw new Error('No response from OpenAI');
+                }
+
+                return JSON.parse(content);
+            } catch (error) {
+                console.error('Error generating response:', error);
+                throw error;
+            }
+        }
+
+        export async function generateEmbedding(text: string) {
+            try {
+                if (aiProvider === 'local') {
+                    // Use a free embedding service or simple text similarity
+                    // For now, return a simple hash-based embedding
+                    return generateSimpleEmbedding(text);
+                }
+
+                const response = await openai.embeddings.create({model: 'text-embedding-3-large', input: text});
+
+                return response.data[0].embedding;
+            } catch (error) {
+                console.error('Error generating embedding:', error);
+                throw error;
+            }
+        }
+
+        // Simple embedding alternative for local use
+        function generateSimpleEmbedding(text: string): number[] { // Create a simple 384-dimensional embedding based on text characteristics
+            const words = text.toLowerCase().split(/\s+/);
+            const embedding = new Array(384).fill(0);
+
+            // Use word frequency and position to create embedding
+            words.forEach((word, index) => {
+                const hash = simpleHash(word);
+                const pos = hash % 384;
+                embedding[pos] += 1 / (index + 1); // Weight by position
+            });
+
+            // Normalize the embedding
+            const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+            return embedding.map(val => magnitude > 0 ? val / magnitude : 0);
+        }
+
+        function simpleHash(str: string): number {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            return Math.abs(hash);
+        }
+
+        // Simplified response generation without learning dependencies
+        export async function generateSimpleResponse(emailAnalysis: any, emailData: any) {
+            try {
+                console.log(`🤖 Generating simple response for email analysis:`, emailAnalysis);
+
+                const prompt = `
 You are a professional email assistant. Generate a helpful, contextual response to this email.
 
 Original Email:
-From: ${emailData.from}
-Subject: ${emailData.subject}
-Content: ${emailData.body || emailData.snippet}
+From: ${
+                    emailData.from
+                }
+Subject: ${
+                    emailData.subject
+                }
+Content: ${
+                    emailData.body || emailData.snippet
+                }
 
 Email Analysis:
-- Intent: ${emailAnalysis.intent}
-- Urgency: ${emailAnalysis.urgency}
-- Sentiment: ${emailAnalysis.sentiment}
+- Intent: ${
+                    emailAnalysis.intent
+                }
+- Urgency: ${
+                    emailAnalysis.urgency
+                }
+- Sentiment: ${
+                    emailAnalysis.sentiment
+                }
 
 Generate a professional, helpful response. Keep it concise and appropriate for the context.
 Return ONLY a JSON object with this structure:
@@ -365,54 +350,50 @@ Return ONLY a JSON object with this structure:
 }
 `;
 
-    const response = await openai.chat.completions.create({
-      model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a professional email assistant. Always respond with valid JSON only.'
-        },
-        {
-          role: 'user',
-          content: prompt
+                const response = await openai.chat.completions.create({
+                    model: config.model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a professional email assistant. Always respond with valid JSON only.'
+                        }, {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 500
+                });
+
+                const content = response.choices[0] ?. message ?. content;
+                if (! content) {
+                    throw new Error('No response generated');
+                }
+
+                // Parse the JSON response
+                let parsedResponse;
+                try {
+                    parsedResponse = JSON.parse(content);
+                } catch (parseError) {
+                    console.error('Failed to parse AI response as JSON:', content);
+                    // Fallback response
+                    parsedResponse = {
+                        content: "Thank you for your email. I'll review this and get back to you soon.",
+                        confidence: 0.5,
+                        reasoning: "Fallback response due to parsing error",
+                        workflowUsed: "fallback"
+                    };
+                }
+
+                console.log(`✅ Generated simple response with confidence: ${
+                    parsedResponse.confidence
+                }`);
+                return parsedResponse;
+
+            } catch (error) {
+                console.error('Error generating simple response:', error);
+
+                // Return a fallback response
+                return {content: "Thank you for your email. I'll review this and get back to you soon.", confidence: 0.3, reasoning: "Fallback response due to generation error", workflowUsed: "error_fallback"};
+            }
         }
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response generated');
-    }
-
-    // Parse the JSON response
-    let parsedResponse;
-    try {
-      parsedResponse = JSON.parse(content);
-    } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', content);
-      // Fallback response
-      parsedResponse = {
-        content: "Thank you for your email. I'll review this and get back to you soon.",
-        confidence: 0.5,
-        reasoning: "Fallback response due to parsing error",
-        workflowUsed: "fallback"
-      };
-    }
-
-    console.log(`✅ Generated simple response with confidence: ${parsedResponse.confidence}`);
-    return parsedResponse;
-
-  } catch (error) {
-    console.error('Error generating simple response:', error);
-    
-    // Return a fallback response
-    return {
-      content: "Thank you for your email. I'll review this and get back to you soon.",
-      confidence: 0.3,
-      reasoning: "Fallback response due to generation error",
-      workflowUsed: "error_fallback"
-    };
-  }
-}

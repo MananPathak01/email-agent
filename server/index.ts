@@ -1,4 +1,4 @@
-import express, {type Request, Response, NextFunction} from 'express';
+import express, {typeRequest, Response, NextFunction} from 'express';
 import {setupVite, serveStatic, log} from './vite';
 import {registerRoutes} from './routes';
 import {createServer} from 'http';
@@ -17,6 +17,7 @@ app.use(cors({
         if (!origin) 
             return callback(null, true);
         
+
 
         // In development, allow all localhost origins
         if (process.env.NODE_ENV === 'development' && origin ?. includes('localhost')) {
@@ -69,6 +70,7 @@ app.use((err : any, _req : Request, res : Response, _next : NextFunction) => {
     if (status === 500) 
         console.error(err);
     
+
 });
 
 // Vite dev server in development
@@ -105,6 +107,7 @@ process.on('SIGINT', async () => {
         if (redis) 
             await redis.quit();
         
+
 
         // Close HTTP server
         httpServer.close(() => {

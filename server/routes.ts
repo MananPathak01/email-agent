@@ -1,6 +1,6 @@
 import type {Express}
 from "express";
-import {createServer, type Server} from "http";
+import {createServer, Server} from "http";
 import {WebSocketServer, WebSocket} from "ws";
 import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase";
 
@@ -30,12 +30,13 @@ interface GmailAccount extends DocumentData {
     lastConnectedAt: string;
 }
 
-import {GmailService, getAuthUrl, getTokensFromCode} from "./services/gmail.service";
+import {GmailService as GmailServiceClass, getAuthUrl, getTokensFromCode, getUserEmail} from "./services/gmail";
+import {GmailService} from "./services/gmail.service";
 import {gmailRouter} from "./routes/gmail.routes";
 import {authenticate} from "./middleware/auth.middleware";
-import { IncomingEmailService } from './services/incoming-email.service';
+import {IncomingEmailService} from './services/incoming-email.service';
 
-export async function registerRoutes(app : Express): Promise < Server > { // Parse JSON bodies for webhooks
+export async function registerRoutes(app: Express): Promise<Server> { // Parse JSON bodies for webhooks
     app.use(bodyParser.json());
 
     // Register Gmail routes with authentication
@@ -46,29 +47,31 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
     // Expects body: { message: { data: base64(JSON{"emailAddress","historyId"}), attributes?: {...} }, subscription: string }
     app.post('/webhooks/pubsub/gmail', async (req, res) => {
         try {
-            const msg = req.body?.message;
-            if (!msg || !msg.data) {
-                return res.status(400).json({ error: 'Invalid Pub/Sub message' });
+            const msg = req.body ?. message;
+            if (! msg || ! msg.data) {
+                return res.status(400).json({error: 'Invalid Pub/Sub message'});
             }
 
             // Optional: verify Google-signed JWT in Authorization header (to be implemented for production)
             // const authHeader = req.header('Authorization');
             // TODO: verify JWT audience/issuer against env config
 
-            const decoded = JSON.parse(Buffer.from(msg.data, 'base64').toString('utf8')) as { emailAddress: string; historyId: string | number };
-            if (!decoded?.emailAddress || !decoded?.historyId) {
-                return res.status(400).json({ error: 'Missing emailAddress or historyId' });
+            const decoded = JSON.parse(Buffer.from(msg.data, 'base64').toString('utf8'))as {
+                emailAddress : string;
+                historyId : string | number
+            };
+            if (! decoded ?. emailAddress || ! decoded ?. historyId) {
+                return res.status(400).json({error: 'Missing emailAddress or historyId'});
             }
 
             // Process asynchronously but ack immediately to Pub/Sub
-            IncomingEmailService.processNotification(decoded.emailAddress, decoded.historyId)
-                .catch((e) => console.error('[PubSub] Processing error:', e));
+            IncomingEmailService.processNotification(decoded.emailAddress, decoded.historyId).catch((e) => console.error('[PubSub] Processing error:', e));
 
             // Acknowledge receipt
             return res.status(204).send();
-        } catch (err: any) {
-            console.error('[PubSub] Handler error:', err?.message || err);
-            return res.status(500).json({ error: 'Internal error' });
+        } catch (err : any) {
+            console.error('[PubSub] Handler error:', err ?. message || err);
+            return res.status(500).json({error: 'Internal error'});
         }
     });
 
@@ -76,9 +79,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
     const httpServer = createServer(app);
 
     // WebSocket setup for real-time updates
-    const wss = new WebSocketServer(
-        {server: httpServer, path: '/ws'}
-    );
+    const wss = new WebSocketServer({server: httpServer, path: '/ws'});
 
     const connectedClients = new Map<string, WebSocket>();
 
@@ -169,8 +170,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             }
 
             // Get user email from Gmail
-            const gmailService = new GmailService(tokens.access_token, tokens.refresh_token);
-            const email = await gmailService.getUserEmail();
+            const email = await getUserEmail(tokens);
 
             console.log('Creating Gmail account for:', {userId, email});
 
@@ -248,7 +248,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             const emailsQuery = query(emailsCollection, where('userId', '==', userId), orderBy('receivedAt', 'desc'));
             const emailsSnapshot = await getDocs(emailsQuery);
 
-            const emails = [];
+            const emails: any[] = [];
             emailsSnapshot.forEach((doc) => {
                 emails.push({
                     id: doc.id,

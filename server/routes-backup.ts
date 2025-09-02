@@ -1,210 +1,234 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+import type {Express}
+from "express";
+import {createServer, type Server} from "http";
+import {WebSocketServer, WebSocket} from "ws";
 // import { storage } from "./storage"; // No longer needed - using Firebase directly
-// import { 
-//   analyzeEmail, 
-//   generateEmailResponse, 
-//   suggestTasks,
-//   summarizeConversation 
+// import {
+// analyzeEmail,
+// generateEmailResponse,
+// suggestTasks,
+// summarizeConversation
 // } from "./services/openai";
-import { getCollectionRef, getDocRef, COLLECTIONS } from "./firebase";
-import { getDocs, getDoc, setDoc, addDoc, query, where, orderBy } from 'firebase/firestore';
-import { 
-  GmailService, 
-  getAuthUrl, 
-  getTokensFromCode, 
-  refreshAccessToken 
-} from "./services/gmail";
+import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase";
+import {
+    getDocs,
+    getDoc,
+    setDoc,
+    addDoc,
+    query,
+    where,
+    orderBy
+} from 'firebase/firestore';
+import {GmailService, getAuthUrl, getTokensFromCode, refreshAccessToken} from "./services/gmail";
 // import { vectorSearchService } from "./services/vectorSearch";
 // import { insertEmailSchema, insertTaskSchema, insertEmailResponseSchema } from "@shared/schema"; // No longer needed
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  const httpServer = createServer(app);
+export async function registerRoutes(app : Express): Promise < Server > {
+    const httpServer = createServer(app);
 
-  // WebSocket setup for real-time updates
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
-  const connectedClients = new Map<string, WebSocket>();
+    // WebSocket setup for real-time updates
+    const wss = new WebSocketServer(
+        {server: httpServer, path: '/ws'}
+    );
 
-  wss.on('connection', (ws: WebSocket) => {
-    const clientId = Math.random().toString(36).substring(7);
-    connectedClients.set(clientId, ws);
+    const connectedClients = new Map<string, WebSocket>();
 
-    ws.on('close', () => {
-      connectedClients.delete(clientId);
+    wss.on('connection', (ws : WebSocket) => {
+        const clientId = Math.random().toString(36).substring(7);
+        connectedClients.set(clientId, ws);
+
+        ws.on('close', () => {
+            connectedClients.delete(clientId);
+        });
+
+        ws.on('error', (error) => {
+            console.error('WebSocket error:', error);
+            connectedClients.delete(clientId);
+        });
     });
 
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
-      connectedClients.delete(clientId);
+    // Broadcast to all connected clients
+    const broadcast = (data : any) => {
+        const message = JSON.stringify(data);
+        connectedClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(message);
+            }
+        });
+    };
+
+    // Gmail account routes
+    app.get("/api/gmail/accounts", async (req, res) => {
+        try {
+            const {userId} = req.query;
+            if (!userId) {
+                return res.status(400).json({message: "User ID is required"});
+            }
+            console.log('Fetching Gmail accounts for user:', userId);
+
+            const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
+            const accountsQuery = query(accountsCollection, where('userId', '==', userId));
+            const accountsSnapshot = await getDocs(accountsQuery);
+
+            const accounts = [];
+            accountsSnapshot.forEach((doc) => {
+                accounts.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+
+            console.log('Found accounts:', accounts);
+            res.json(accounts);
+        } catch (error) {
+            console.error('Error fetching Gmail accounts:', error);
+            res.status(500).json({message: "Failed to fetch Gmail accounts"});
+        }
     });
-  });
 
-  // Broadcast to all connected clients
-  const broadcast = (data: any) => {
-    const message = JSON.stringify(data);
-    connectedClients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
+    // Gmail OAuth routes
+    app.get("/api/auth/gmail", async (req, res) => {
+        try {
+            const authUrl = getAuthUrl();
+            res.json({authUrl});
+        } catch (error) {
+            res.status(500).json({message: "Failed to generate auth URL"});
+        }
     });
-  };
 
-  // Gmail account routes
-  app.get("/api/gmail/accounts", async (req, res) => {
-    try {
-      const { userId } = req.query;
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
-      console.log('Fetching Gmail accounts for user:', userId);
-      
-      const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
-      const accountsQuery = query(accountsCollection, where('userId', '==', userId));
-      const accountsSnapshot = await getDocs(accountsQuery);
-      
-      const accounts = [];
-      accountsSnapshot.forEach((doc) => {
-        accounts.push({ id: doc.id, ...doc.data() });
-      });
-      
-      console.log('Found accounts:', accounts);
-      res.json(accounts);
-    } catch (error) {
-      console.error('Error fetching Gmail accounts:', error);
-      res.status(500).json({ message: "Failed to fetch Gmail accounts" });
-    }
-  });
+    app.post("/api/auth/gmail/callback", async (req, res) => {
+        try {
+            const {code, userId} = req.body;
 
-  // Gmail OAuth routes
-  app.get("/api/auth/gmail", async (req, res) => {
-    try {
-      const authUrl = getAuthUrl();
-      res.json({ authUrl });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to generate auth URL" });
-    }
-  });
+            console.log('OAuth callback received:', {
+                code: !!code,
+                userId
+            });
 
-  app.post("/api/auth/gmail/callback", async (req, res) => {
-    try {
-      const { code, userId } = req.body;
-      
-      console.log('OAuth callback received:', { code: !!code, userId });
-      
-      if (!code || !userId) {
-        return res.status(400).json({ message: "Code and userId are required" });
-      }
+            if (!code || !userId) {
+                return res.status(400).json({message: "Code and userId are required"});
+            }
 
-      // Check if user exists in our database
-      const userDocRef = getDocRef(COLLECTIONS.USERS, userId as string);
-      const userDoc = await getDoc(userDocRef);
-      if (!userDoc.exists()) {
-        return res.status(400).json({ message: "User not found. Please create account first." });
-      }
+            // Check if user exists in our database
+            const userDocRef = getDocRef(COLLECTIONS.USERS, userId as string);
+            const userDoc = await getDoc(userDocRef);
+            if (! userDoc.exists()) {
+                return res.status(400).json({message: "User not found. Please create account first."});
+            }
 
-      const tokens = await getTokensFromCode(code);
-      
-      if (!tokens.access_token || !tokens.refresh_token) {
-        return res.status(400).json({ message: "Failed to get tokens" });
-      }
+            const tokens = await getTokensFromCode(code);
 
-      // Get user email from Gmail
-      const gmailService = new GmailService(tokens.access_token, tokens.refresh_token);
-      const email = await gmailService.getUserEmail();
-      
-      console.log('Creating Gmail account for:', { userId, email });
+            if (! tokens.access_token || ! tokens.refresh_token) {
+                return res.status(400).json({message: "Failed to get tokens"});
+            }
 
-      // Store the Gmail account in Firebase
-      const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
-      
-      const gmailAccount = {
-        userId: userId as string,
-        email,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      };
-      
-      const accountDocRef = await addDoc(accountsCollection, gmailAccount);
-      
-      const savedAccount = { id: accountDocRef.id, ...gmailAccount };
-      console.log('Gmail account created:', savedAccount);
+            // Get user email from Gmail
+            const gmailService = new GmailService(tokens.access_token, tokens.refresh_token);
+            const email = await gmailService.getUserEmail();
 
-      res.json({ success: true, account: savedAccount });
-    } catch (error) {
-      console.error("Gmail OAuth callback error:", error);
-      res.status(500).json({ message: "Failed to connect Gmail account" });
-    }
-  });
+            console.log('Creating Gmail account for:', {userId, email});
 
-  // Email processing routes
-  app.get("/api/emails", async (req, res) => {
-    try {
-      const { userId } = req.query;
-      
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
-      }
+            // Store the Gmail account in Firebase
+            const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
 
-      const emailsCollection = getCollectionRef(COLLECTIONS.EMAILS);
-      const emailsQuery = query(emailsCollection, where('userId', '==', userId), orderBy('receivedAt', 'desc'));
-      const emailsSnapshot = await getDocs(emailsQuery);
-      
-      const emails = [];
-      emailsSnapshot.forEach((doc) => {
-        emails.push({ id: doc.id, ...doc.data() });
-      });
-      
-      res.json(emails);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch emails" });
-    }
-  });
+            const gmailAccount = {
+                userId: userId as string,
+                email,
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                isActive: true,
+                createdAt: new Date().toISOString()
+            };
 
-  // Manual email creation route
-  app.post("/api/emails", async (req, res) => {
-    try {
-      const emailData = req.body;
-      
-      // Simplified email creation without AI analysis for now
-      let analysis = null;
+            const accountDocRef = await addDoc(accountsCollection, gmailAccount);
 
-      // Store email in Firebase
-      const emailsCollection = getCollectionRef(COLLECTIONS.EMAILS);
-      
-      const emailToStore = {
-        ...emailData,
-        userId: emailData.userId || 'default-user',
-        createdAt: new Date().toISOString(),
-        receivedAt: emailData.receivedAt || new Date().toISOString(),
-        status: 'pending',
-        isOnboardingRelated: analysis?.isOnboardingRelated || false,
-        priority: analysis?.priority || 'medium',
-        category: analysis?.category || 'general',
-        aiAnalysis: analysis,
-      };
-      
-      const emailDocRef = await addDoc(emailsCollection, emailToStore);
-      const savedEmail = { id: emailDocRef.id, ...emailToStore };
-      
-      // TODO: Add task creation back later
+            const savedAccount = {
+                id: accountDocRef.id,
+                ... gmailAccount
+            };
+            console.log('Gmail account created:', savedAccount);
 
-      broadcast({
-        type: 'email_created',
-        data: { email: savedEmail, analysis }
-      });
+            res.json({success: true, account: savedAccount});
+        } catch (error) {
+            console.error("Gmail OAuth callback error:", error);
+            res.status(500).json({message: "Failed to connect Gmail account"});
+        }
+    });
 
-      res.json({ email: savedEmail, analysis });
-    } catch (error) {
-      console.error('Failed to create email:', error);
-      res.status(500).json({ message: "Failed to create email" });
-    }
-  });
+    // Email processing routes
+    app.get("/api/emails", async (req, res) => {
+        try {
+            const {userId} = req.query;
 
-  /* TODO: Implement email sync with Firebase
+            if (!userId) {
+                return res.status(400).json({message: "User ID is required"});
+            }
+
+            const emailsCollection = getCollectionRef(COLLECTIONS.EMAILS);
+            const emailsQuery = query(emailsCollection, where('userId', '==', userId), orderBy('receivedAt', 'desc'));
+            const emailsSnapshot = await getDocs(emailsQuery);
+
+            const emails = [];
+            emailsSnapshot.forEach((doc) => {
+                emails.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+
+            res.json(emails);
+        } catch (error) {
+            res.status(500).json({message: "Failed to fetch emails"});
+        }
+    });
+
+    // Manual email creation route
+    app.post("/api/emails", async (req, res) => {
+        try {
+            const emailData = req.body;
+
+            // Simplified email creation without AI analysis for now
+            let analysis = null;
+
+            // Store email in Firebase
+            const emailsCollection = getCollectionRef(COLLECTIONS.EMAILS);
+
+            const emailToStore = {
+                ... emailData,
+                userId: emailData.userId || 'default-user',
+                createdAt: new Date().toISOString(),
+                receivedAt: emailData.receivedAt || new Date().toISOString(),
+                status: 'pending',
+                isOnboardingRelated: analysis ?. isOnboardingRelated || false,
+                priority: analysis ?. priority || 'medium',
+                category: analysis ?. category || 'general',
+                aiAnalysis: analysis
+            };
+
+            const emailDocRef = await addDoc(emailsCollection, emailToStore);
+            const savedEmail = {
+                id: emailDocRef.id,
+                ... emailToStore
+            };
+
+            // TODO: Add task creation back later
+
+            broadcast({
+                type: 'email_created',
+                data: {
+                    email: savedEmail,
+                    analysis
+                }
+            });
+
+            res.json({email: savedEmail, analysis});
+        } catch (error) {
+            console.error('Failed to create email:', error);
+            res.status(500).json({message: "Failed to create email"});
+        }
+    });
+
+    /* TODO: Implement email sync with Firebase
   app.post("/api/emails/sync", async (req, res) => {
     try {
       const { userId } = req.body;
@@ -548,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create user" });
     }
   });
+  */
 
-  return httpServer;
+    return httpServer;
 }
-

@@ -30,8 +30,8 @@ interface GmailAccount extends DocumentData {
     lastConnectedAt: string;
 }
 
-import {GmailService as GmailServiceClass, getAuthUrl, getTokensFromCode, getUserEmail} from "./services/gmail";
-import {GmailService} from "./services/gmail.service";
+import {GmailService as GmailServiceClass, getTokensFromCode} from "./services/gmail";
+import {GmailService, getUserEmail, getAuthUrl} from "./services/gmail.service";
 import {gmailRouter} from "./routes/gmail.routes";
 import {authenticate} from "./middleware/auth.middleware";
 import {IncomingEmailService} from './services/incoming-email.service';

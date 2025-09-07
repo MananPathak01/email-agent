@@ -1,11 +1,11 @@
 import express, {typeRequest, Response, NextFunction} from 'express';
-import {setupVite, serveStatic, log} from './vite';
-import {registerRoutes} from './routes';
+import {setupVite, serveStatic, log} from './vite.js';
+import {registerRoutes} from './routes.js';
 import {createServer} from 'http';
 import {wsManager} from './lib/websocket.js';
 import {redis} from './lib/queue.js';
 import cors from 'cors';
-import {PollingService} from './services/polling.service';
+import {PollingService} from './services/polling.service.js';
 
 const app = express();
 
@@ -63,13 +63,18 @@ wsManager.initialize(httpServer);
 registerRoutes(app);
 
 // Error handling
-app.use((err : any, _req : Request, res : Response, _next : NextFunction) => {
+app.use((err
+: any, _req
+: Request, res
+: Response, _next
+: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || 'Internal Server Error';
     res.status(status).json({message});
     if (status === 500) 
         console.error(err);
     
+
 
 });
 

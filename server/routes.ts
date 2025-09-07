@@ -2,7 +2,7 @@ import type {Express}
 from "express";
 import {createServer, Server} from "http";
 import {WebSocketServer, WebSocket} from "ws";
-import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase";
+import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase.js";
 
 import bodyParser from "body-parser";
 import {
@@ -30,13 +30,13 @@ interface GmailAccount extends DocumentData {
     lastConnectedAt: string;
 }
 
-import {GmailService as GmailServiceClass, getTokensFromCode} from "./services/gmail";
-import {GmailService, getUserEmail, getAuthUrl} from "./services/gmail.service";
-import {gmailRouter} from "./routes/gmail.routes";
-import {authenticate} from "./middleware/auth.middleware";
-import {IncomingEmailService} from './services/incoming-email.service';
+import {GmailService as GmailServiceClass, getTokensFromCode} from "./services/gmail.js";
+import {GmailService, getUserEmail, getAuthUrl} from "./services/gmail.service.js";
+import {gmailRouter} from "./routes/gmail.routes.js";
+import {authenticate} from "./middleware/auth.middleware.js";
+import {IncomingEmailService} from './services/incoming-email.service.js';
 
-export async function registerRoutes(app: Express): Promise<Server> { // Parse JSON bodies for webhooks
+export async function registerRoutes(app : Express): Promise < Server > { // Parse JSON bodies for webhooks
     app.use(bodyParser.json());
 
     // Register Gmail routes with authentication
@@ -99,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
             }
             console.log('Fetching Gmail accounts for user:', userId);
 
-            const accounts = await import ('./emailAccounts').then((m) => m.listEmailAccounts(userId));
+            const accounts = await import ('./services/emailAccounts.service.js').then((m) => m.listEmailAccounts(userId));
 
             console.log('Found accounts:', accounts);
             return res.json(accounts); // empty array is fine

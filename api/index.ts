@@ -1,6 +1,6 @@
 import {VercelRequest, VercelResponse} from '@vercel/node';
 import express from 'express';
-import {registerRoutes} from '../server/routes';
+import {registerRoutes} from '../server/routes.js';
 import cors from 'cors';
 
 const app = express();

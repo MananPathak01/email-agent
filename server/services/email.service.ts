@@ -1,4 +1,4 @@
-import {db} from '../firebase';
+import {db} from '../firebase.js';
 import {
     doc,
     setDoc,
@@ -7,8 +7,8 @@ import {
     collection,
     addDoc
 } from 'firebase/firestore';
-import {analyzeEmail, generateResponse} from '../lib/openai';
-import {wsManager} from '../lib/websocket';
+import {analyzeEmail, generateResponse} from '../lib/openai.js';
+import {wsManager} from '../lib/websocket.js';
 
 export interface EmailAnalysisResult {
     emailId: string;
@@ -26,7 +26,7 @@ export interface DraftResponseResult {
     status: 'pending' | 'approved' | 'rejected' | 'edited';
 }
 
-export async function saveEmailAnalysis(emailId: string, userId: string, analysis: any) {
+export async function saveEmailAnalysis(emailId : string, userId : string, analysis : any) {
     try {
         const analysisDoc = {
             emailId,
@@ -43,7 +43,7 @@ export async function saveEmailAnalysis(emailId: string, userId: string, analysi
     }
 }
 
-export async function saveDraftResponse(emailId: string, userId: string, draftData: any) {
+export async function saveDraftResponse(emailId : string, userId : string, draftData : any) {
     try {
         const draftDoc = {
             emailId,
@@ -60,7 +60,7 @@ export async function saveDraftResponse(emailId: string, userId: string, draftDa
     }
 }
 
-export async function getEmailAnalysis(emailId: string, userId: string) {
+export async function getEmailAnalysis(emailId : string, userId : string) {
     try {
         const docRef = doc(db, 'email_analysis', `${userId}_${emailId}`);
         const docSnap = await getDoc(docRef);
@@ -74,7 +74,7 @@ export async function getEmailAnalysis(emailId: string, userId: string) {
     }
 }
 
-export async function getDraftResponse(emailId: string, userId: string) {
+export async function getDraftResponse(emailId : string, userId : string) {
     try {
         const docRef = doc(db, 'draft_responses', `${userId}_${emailId}`);
         const docSnap = await getDoc(docRef);
@@ -88,7 +88,7 @@ export async function getDraftResponse(emailId: string, userId: string) {
     }
 }
 
-export async function updateDraftStatus(emailId: string, userId: string, status: string, feedback ?:any) {
+export async function updateDraftStatus(emailId : string, userId : string, status : string, feedback? : any) {
     try {
         const docRef = doc(db, 'draft_responses', `${userId}_${emailId}`);
         const updateData: any = {

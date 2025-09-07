@@ -1,13 +1,13 @@
 // server/routes/gmail.routes.ts
 import {Router} from 'express';
-import {GmailService, getAuthUrl, getTokensFromCode, getUserEmail} from '../services/gmail.service';
-import {authenticate} from '../middleware/auth.middleware';
-import {getEmailAnalysis, getDraftResponse, updateDraftStatus} from '../services/email.service';
-import {listEmailAccounts, upsertEmailAccount, updateEmailAccount} from '../services/emailAccounts.service';
+import {GmailService, getAuthUrl, getTokensFromCode, getUserEmail} from '../services/gmail.service.js';
+import {authenticate} from '../middleware/auth.middleware.js';
+import {getEmailAnalysis, getDraftResponse, updateDraftStatus} from '../services/email.service.js';
+import {listEmailAccounts, upsertEmailAccount, updateEmailAccount} from '../services/emailAccounts.service.js';
 import {google} from 'googleapis';
 import express from 'express';
-import {gmailLearningSimpleRouter} from './gmail-learning-simple.routes';
-import { GmailWatchService } from '../services/gmail-watch.service';
+import {gmailLearningSimpleRouter} from './gmail-learning-simple.routes.js';
+import {GmailWatchService} from '../services/gmail-watch.service.js';
 
 export const gmailRouter = Router();
 
@@ -19,7 +19,7 @@ gmailRouter.use('/', gmailLearningSimpleRouter);
 
 // Register Gmail watch for Pub/Sub (per account)
 // gmailRouter.post('/watch/register', authenticate, async (req, res) => {
-//   try {
+// try {
 //     const userId = req.user?.uid;
 //     if (!userId) return res.status(401).json({ error: 'User not authenticated' });
 //     const { email } = req.body as { email?: string };
@@ -29,10 +29,10 @@ gmailRouter.use('/', gmailLearningSimpleRouter);
 //     if (!result) return res.status(400).json({ error: 'Account or tokens not found' });
 
 //     res.json({ success: true, historyId: result.historyId, expiresAt: result.expiration || null });
-//   } catch (e:any) {
+// } catch (e:any) {
 //     console.error('[Watch] Register error:', e?.message || e);
 //     res.status(500).json({ error: 'Failed to register watch' });
-//   }
+// }
 // });
 
 // Start OAuth flow
@@ -173,15 +173,20 @@ gmailRouter.get('/emails', authenticate, async (req, res) => {
         // Add AI analysis data to emails
         const emailsWithAI = await Promise.all(emails.map(async (email) => {
             if (!email.id) {
-                return { ...email, analysis: null, hasDraft: false, draftStatus: null };
+                return {
+                    ...email,
+                    analysis: null,
+                    hasDraft: false,
+                    draftStatus: null
+                };
             }
             const analysis = await getEmailAnalysis(email.id, userId);
             const draft = await getDraftResponse(email.id, userId);
             return {
                 ...email,
-                analysis: analysis?.analysis || null,
-                hasDraft: !!draft,
-                draftStatus: draft?.status || null,
+                analysis: analysis ?. analysis || null,
+                hasDraft: !! draft,
+                draftStatus: draft ?. status || null
             };
         }));
         res.json({emails: emailsWithAI});

@@ -1,19 +1,20 @@
 // server/services/gmail.service.ts
-import { google } from 'googleapis';
-import type { Credentials } from 'google-auth-library';
-import {adminDb} from '../firebase-admin';
-import {addEmailProcessingJob} from '../lib/queue';
-import {wsManager} from '../lib/websocket';
-import {analyzeEmail} from '../lib/openai';
+import {google} from 'googleapis';
+import type {Credentials}
+from 'google-auth-library';
+import {adminDb} from '../firebase-admin.js';
+import {addEmailProcessingJob} from '../lib/queue.js';
+import {wsManager} from '../lib/websocket.js';
+import {analyzeEmail} from '../lib/openai.js';
 
 export class GmailService {
     createAuthClient() {
         return new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
     }
 
-    async getGmailClient(userId: string) {
+    async getGmailClient(userId : string) {
         let tokens = await this.getStoredTokens(userId);
-        if (!tokens) {
+        if (! tokens) {
             throw new Error('No stored tokens found for user.');
         }
 
@@ -23,13 +24,13 @@ export class GmailService {
             tokens = await this.refreshTokensIfNeeded(userId, tokens);
         }
 
-        if (!tokens) {
+        if (! tokens) {
             throw new Error('Failed to refresh tokens.');
         }
 
         const auth = this.createAuthClient();
         auth.setCredentials(tokens);
-        return google.gmail({ version: 'v1', auth });
+        return google.gmail({version: 'v1', auth});
     }
 
     async refreshTokensIfNeeded(userId : string, tokens : any): Promise < any > {
@@ -211,7 +212,7 @@ export class GmailService {
             // Refresh tokens if needed
             tokens = await this.refreshTokensIfNeeded(userId, tokens);
 
-            if (!tokens) {
+            if (! tokens) {
                 throw new Error('Failed to refresh tokens.');
             }
 
@@ -317,7 +318,7 @@ export class GmailService {
             // Refresh tokens if needed
             tokens = await this.refreshTokensIfNeeded(userId, tokens);
 
-            if (!tokens) {
+            if (! tokens) {
                 throw new Error('Failed to refresh tokens.');
             }
 
@@ -400,7 +401,7 @@ export class GmailService {
             // Refresh tokens if needed
             tokens = await this.refreshTokensIfNeeded(userId, tokens);
 
-            if (!tokens) {
+            if (! tokens) {
                 throw new Error('Failed to refresh tokens.');
             }
 
@@ -510,13 +511,13 @@ export function getAuthUrl(userId : string): string {
 /**
  * Exchanges an authorization code for tokens.
  */
-export async function getTokensFromCode(code: string): Promise<Credentials> {
+export async function getTokensFromCode(code : string): Promise < Credentials > {
     const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
-    const { tokens } = await oauth2Client.getToken(code);
-   if (!tokens.access_token || !tokens.refresh_token) {
-       throw new Error('Failed to get tokens from Google');
-   }
-   return tokens;
+    const {tokens} = await oauth2Client.getToken(code);
+    if (!tokens.access_token || !tokens.refresh_token) {
+        throw new Error('Failed to get tokens from Google');
+    }
+    return tokens;
 }
 
 /**

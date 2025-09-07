@@ -9,7 +9,7 @@ import {WebSocketServer, WebSocket} from "ws";
 // suggestTasks,
 // summarizeConversation
 // } from "./services/openai";
-import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase";
+import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase.js";
 import {
     getDocs,
     getDoc,
@@ -19,7 +19,7 @@ import {
     where,
     orderBy
 } from 'firebase/firestore';
-import {GmailService, getAuthUrl, getTokensFromCode, refreshAccessToken} from "./services/gmail";
+import {GmailService, getAuthUrl, getTokensFromCode, refreshAccessToken} from "./services/gmail.js";
 // import { vectorSearchService } from "./services/vectorSearch";
 // import { insertEmailSchema, insertTaskSchema, insertEmailResponseSchema } from "@shared/schema"; // No longer needed
 

@@ -1,4 +1,4 @@
-import {db} from '../firebase';
+import {db} from '../firebase.js';
 import {
     doc,
     getDoc,
@@ -11,9 +11,9 @@ import {
     orderBy,
     addDoc
 } from 'firebase/firestore';
-import {generateEmbedding} from '../lib/openai';
+import {generateEmbedding} from '../lib/openai.js';
 
-export async function getUserCommunicationStyle(userId: string) {
+export async function getUserCommunicationStyle(userId : string) {
     try {
         const docRef = doc(db, 'user_communication_styles', userId);
         const docSnap = await getDoc(docRef);
@@ -34,7 +34,7 @@ export async function getUserCommunicationStyle(userId: string) {
     }
 }
 
-export async function getSimilarResponses(userId: string, emailAnalysis: any) {
+export async function getSimilarResponses(userId : string, emailAnalysis : any) {
     try { // Query for similar emails based on category
         const q = query(collection(db, 'email_analysis'), where('userId', '==', userId), where('analysis.category', '==', emailAnalysis.category), orderBy('processedAt', 'desc'), limit(3));
         const querySnapshot = await getDocs(q);
@@ -49,7 +49,7 @@ export async function getSimilarResponses(userId: string, emailAnalysis: any) {
     }
 }
 
-export async function getWorkflowTemplate(userId: string, category: string) {
+export async function getWorkflowTemplate(userId : string, category : string) {
     try {
         const q = query(collection(db, 'workflow_templates'), where('userId', '==', userId), where('category', '==', category), where('isActive', '==', true), limit(1));
         const querySnapshot = await getDocs(q);
@@ -63,7 +63,7 @@ export async function getWorkflowTemplate(userId: string, category: string) {
     }
 }
 
-export async function processHistoricalEmails(userId: string, accountId: string, emailData: any[]) {
+export async function processHistoricalEmails(userId : string, accountId : string, emailData : any[]) {
     try {
         console.log(`🧠 Processing ${
             emailData.length
@@ -111,7 +111,7 @@ export async function processHistoricalEmails(userId: string, accountId: string,
     }
 }
 
-export async function updateLearningFromFeedback(userId: string, emailId: string, originalDraft: string, userEdit: string) {
+export async function updateLearningFromFeedback(userId : string, emailId : string, originalDraft : string, userEdit : string) {
     try { // Analyze the differences between original and edited draft
         const feedback = {
             emailId,

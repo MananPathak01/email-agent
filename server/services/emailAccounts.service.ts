@@ -1,8 +1,8 @@
 import {Timestamp, DocumentData} from 'firebase-admin/firestore';
 // No need to import FirebaseError, we'll use type checking
-import {adminDb} from '../firebase-admin';
-import {COLLECTIONS} from '../firebase';
-import {encrypt} from '../utils/crypto';
+import {adminDb} from '../firebase-admin.js';
+import {COLLECTIONS} from '../firebase.js';
+import {encrypt} from '../utils/crypto.js';
 
 class EmailAccountError extends Error {
     constructor(message : string, public code? : string) {
@@ -66,7 +66,8 @@ export const listEmailAccounts = async (userId : string) : Promise < Array < Ema
         return snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-        } as EmailAccount & {
+        }
+        as EmailAccount & {
             id: string
         }));
     } catch (error : any) {
@@ -104,7 +105,8 @@ export const getEmailAccount = async (accountId : string, userId : string) : Pro
         return {
             id: doc.id,
             ... doc.data()
-        } as EmailAccount & {
+        }
+        as EmailAccount & {
             id: string
         };
     } catch (error) {

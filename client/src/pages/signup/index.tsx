@@ -17,7 +17,7 @@ const SignupPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       return setError('Passwords do not match');
     }
@@ -26,7 +26,7 @@ const SignupPage = () => {
       setError('');
       setLoading(true);
       await signup(email, password, displayName);
-      navigate('/dashboard');
+      navigate('/chat');
     } catch (err) {
       setError('Failed to create an account: ' + (err as Error).message);
     }
@@ -38,7 +38,7 @@ const SignupPage = () => {
       setError('');
       setGoogleLoading(true);
       await signInWithGoogle();
-      navigate('/dashboard');
+      navigate('/chat');
     } catch (err) {
       setError('Failed to sign in with Google: ' + (err as Error).message);
       setGoogleLoading(false);
@@ -61,13 +61,13 @@ const SignupPage = () => {
               </Link>
             </p>
           </div>
-          
+
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
               <span className="block sm:inline">{error}</span>
             </div>
           )}
-          
+
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div>

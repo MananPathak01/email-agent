@@ -1,8 +1,8 @@
-import type {Express}
-from "express";
-import {createServer, Server} from "http";
-import {WebSocketServer, WebSocket} from "ws";
-import {getCollectionRef, getDocRef, COLLECTIONS} from "./firebase.js";
+import type { Express }
+    from "express";
+import { createServer, Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { getCollectionRef, getDocRef, COLLECTIONS } from "./firebase.js";
 
 import bodyParser from "body-parser";
 import {
@@ -30,48 +30,130 @@ interface GmailAccount extends DocumentData {
     lastConnectedAt: string;
 }
 
-import {GmailService as GmailServiceClass, getTokensFromCode} from "./services/gmail.js";
-import {GmailService, getUserEmail, getAuthUrl} from "./services/gmail.service.js";
-import {gmailRouter} from "./routes/gmail.routes.js";
-import {authenticate} from "./middleware/auth.middleware.js";
-import {IncomingEmailService} from './services/incoming-email.service.js';
+import { GmailService as GmailServiceClass, getTokensFromCode } from "./services/gmail.js";
+import { GmailService, getUserEmail, getAuthUrl } from "./services/gmail.service.js";
+import { gmailRouter } from "./routes/gmail.routes.js";
+import { chatRouter } from "./routes/chat.routes.js";
+import { authenticate } from "./middleware/auth.middleware.js";
+import { IncomingEmailService } from './services/incoming-email.service.js';
 
-export async function registerRoutes(app : Express): Promise < Server > { // Parse JSON bodies for webhooks
+export async function registerRoutes(app: Express): Promise<Server> { // Parse JSON bodies for webhooks
     app.use(bodyParser.json());
+
+    // Debug endpoints for troubleshooting
+    app.get('/api/debug-firebase', (req, res) => {
+        try { // Check which Firebase environment variables are available
+            const firebaseEnvVars = {
+                FIREBASE_API_KEY: !!process.env.FIREBASE_API_KEY,
+                FIREBASE_AUTH_DOMAIN: !!process.env.FIREBASE_AUTH_DOMAIN,
+                FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+                FIREBASE_STORAGE_BUCKET: !!process.env.FIREBASE_STORAGE_BUCKET,
+                FIREBASE_MESSAGING_SENDER_ID: !!process.env.FIREBASE_MESSAGING_SENDER_ID,
+                FIREBASE_APP_ID: !!process.env.FIREBASE_APP_ID,
+                FIREBASE_MEASUREMENT_ID: !!process.env.FIREBASE_MEASUREMENT_ID,
+
+                // Admin SDK variables
+                FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
+                FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL
+            };
+
+            // Check if private key has the right format (without exposing it)
+            const privateKeyInfo = process.env.FIREBASE_PRIVATE_KEY ? {
+                hasValue: true,
+                startsWithBegin: process.env.FIREBASE_PRIVATE_KEY.includes('-----BEGIN'),
+                endsWithEnd: process.env.FIREBASE_PRIVATE_KEY.includes('-----END'),
+                hasNewlines: process.env.FIREBASE_PRIVATE_KEY.includes('\\n'),
+                length: process.env.FIREBASE_PRIVATE_KEY.length
+            } : {
+                hasValue: false
+            };
+
+            return res.json({
+                message: 'Firebase environment debug info',
+                envVars: firebaseEnvVars,
+                privateKeyInfo,
+                projectId: process.env.FIREBASE_PROJECT_ID || 'NOT_SET',
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'NOT_SET'
+            });
+        } catch (error) {
+            return res.status(500).json({
+                error: 'Debug endpoint error',
+                message: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    });
+
+    app.get('/api/test-firestore', async (req, res) => {
+        try { // Try to import and initialize Firebase Admin
+            const { adminDb } = await import('./firebase-admin.js');
+
+            // Try a simple Firestore operation
+            const testCollection = adminDb.collection('test');
+            const testDoc = testCollection.doc('connection-test');
+
+            // Try to read (this should work even if the document doesn't exist)
+            const docSnapshot = await testDoc.get();
+
+            return res.json({ success: true, message: 'Firestore connection successful', docExists: docSnapshot.exists, timestamp: new Date().toISOString() });
+
+        } catch (error: any) {
+            console.error('Firestore test error:', error);
+
+            return res.status(500).json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                timestamp: new Date().toISOString()
+            });
+        }
+    });
 
     // Register Gmail routes with authentication
     app.use('/api/gmail', gmailRouter);
+
+    // Register Chat routes with authentication
+    app.use('/api/chat', chatRouter);
 
     // Pub/Sub push webhook for Gmail notifications
     // Endpoint: POST /webhooks/pubsub/gmail
     // Expects body: { message: { data: base64(JSON{"emailAddress","historyId"}), attributes?: {...} }, subscription: string }
     app.post('/webhooks/pubsub/gmail', async (req, res) => {
         try {
-            const msg = req.body ?. message;
-            if (! msg || ! msg.data) {
-                return res.status(400).json({error: 'Invalid Pub/Sub message'});
+            console.log('🔔 [PubSub] Received webhook:', JSON.stringify(req.body, null, 2));
+
+            const msg = req.body?.message;
+            if (!msg || !msg.data) {
+                console.log('❌ [PubSub] Invalid message format');
+                return res.status(400).json({ error: 'Invalid Pub/Sub message' });
             }
 
             // Optional: verify Google-signed JWT in Authorization header (to be implemented for production)
             // const authHeader = req.header('Authorization');
             // TODO: verify JWT audience/issuer against env config
 
-            const decoded = JSON.parse(Buffer.from(msg.data, 'base64').toString('utf8'))as {
-                emailAddress : string;
-                historyId : string | number
+            const decoded = JSON.parse(Buffer.from(msg.data, 'base64').toString('utf8')) as {
+                emailAddress: string;
+                historyId: string | number
             };
-            if (! decoded ?. emailAddress || ! decoded ?. historyId) {
-                return res.status(400).json({error: 'Missing emailAddress or historyId'});
+
+            console.log('🔍 [PubSub] Decoded message:', decoded);
+
+            if (!decoded?.emailAddress || !decoded?.historyId) {
+                console.log('❌ [PubSub] Missing emailAddress or historyId');
+                return res.status(400).json({ error: 'Missing emailAddress or historyId' });
             }
+
+            console.log(`📧 [PubSub] Processing notification for ${decoded.emailAddress} with historyId ${decoded.historyId}`);
 
             // Process asynchronously but ack immediately to Pub/Sub
             IncomingEmailService.processNotification(decoded.emailAddress, decoded.historyId).catch((e) => console.error('[PubSub] Processing error:', e));
 
             // Acknowledge receipt
+            console.log('✅ [PubSub] Acknowledged receipt');
             return res.status(204).send();
-        } catch (err : any) {
-            console.error('[PubSub] Handler error:', err ?. message || err);
-            return res.status(500).json({error: 'Internal error'});
+        } catch (err: any) {
+            console.error('[PubSub] Handler error:', err?.message || err);
+            return res.status(500).json({ error: 'Internal error' });
         }
     });
 
@@ -82,7 +164,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
     // Real-time updates would need to be implemented using polling or Server-Sent Events
 
     // Broadcast function (no-op for serverless)
-    const broadcast = (data : any) => {
+    const broadcast = (data: any) => {
         // In serverless environment, we can't maintain persistent connections
         // Consider using database-based notifications or polling instead
         console.log('Broadcast attempted (disabled in serverless):', data);
@@ -91,42 +173,51 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
     // Gmail account routes
     app.get("/api/gmail/accounts", async (req, res) => {
         try {
-            const {userId} = req.query as {
+            const { userId } = req.query as {
                 userId?: string
             };
             if (!userId) {
-                return res.status(400).json({message: "User ID is required"});
+                return res.status(400).json({ message: "User ID is required" });
             }
             console.log('Fetching Gmail accounts for user:', userId);
 
-            const accounts = await import ('./services/emailAccounts.service.js').then((m) => m.listEmailAccounts(userId));
+            const accounts = await import('./services/emailAccounts.service.js').then((m) => m.listEmailAccounts(userId));
 
             console.log('Found accounts:', accounts);
             return res.json(accounts); // empty array is fine
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching Gmail accounts:', error);
-            // Always reply 200 with empty list to avoid client error state
-            return res.json([]);
+
+            // Check if it's a Firebase/Firestore error
+            if (error?.code?.startsWith('firestore/')) {
+                return res.status(400).json({ error: error.message, code: error.code });
+            }
+
+            // For other errors, return 500
+            return res.status(500).json({
+                error: error?.message || 'Failed to fetch accounts',
+                code: 'internal-error'
+            });
         }
     });
 
     // Gmail OAuth routes
     app.get("/api/auth/gmail", authenticate, async (req, res) => {
         try {
-            const userId = req.user ?. uid;
-            if (! userId) {
-                return res.status(401).json({error: 'User not authenticated'});
+            const userId = req.user?.uid;
+            if (!userId) {
+                return res.status(401).json({ error: 'User not authenticated' });
             }
             const authUrl = getAuthUrl(userId);
-            res.json({authUrl});
+            res.json({ authUrl });
         } catch (error) {
-            res.status(500).json({message: "Failed to generate auth URL"});
+            res.status(500).json({ message: "Failed to generate auth URL" });
         }
     });
 
     app.post("/api/auth/gmail/callback", async (req, res) => {
         try {
-            const {code, userId} = req.body;
+            const { code, userId } = req.body;
 
             console.log('OAuth callback received:', {
                 code: !!code,
@@ -134,26 +225,26 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             });
 
             if (!code || !userId) {
-                return res.status(400).json({message: "Code and userId are required"});
+                return res.status(400).json({ message: "Code and userId are required" });
             }
 
             // Check if user exists in our database
             const userDocRef = getDocRef(COLLECTIONS.USERS, userId as string);
             const userDoc = await getDoc(userDocRef);
-            if (! userDoc.exists()) {
-                return res.status(400).json({message: "User not found. Please create account first."});
+            if (!userDoc.exists()) {
+                return res.status(400).json({ message: "User not found. Please create account first." });
             }
 
             const tokens = await getTokensFromCode(code);
 
-            if (! tokens.access_token || ! tokens.refresh_token) {
-                return res.status(400).json({message: "Failed to get tokens"});
+            if (!tokens.access_token || !tokens.refresh_token) {
+                return res.status(400).json({ message: "Failed to get tokens" });
             }
 
             // Get user email from Gmail
             const email = await getUserEmail(tokens);
 
-            console.log('Creating Gmail account for:', {userId, email});
+            console.log('Creating Gmail account for:', { userId, email });
 
             // Store the Gmail account in Firebase
             const accountsCollection = getCollectionRef(COLLECTIONS.GMAIL_ACCOUNTS);
@@ -165,7 +256,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
 
             let accountDocRef;
 
-            if (! existingAccount.empty) { // Update existing account
+            if (!existingAccount.empty) { // Update existing account
                 const docId = existingAccount.docs[0].id;
                 accountDocRef = doc(accountsCollection, docId);
                 await setDoc(accountDocRef, {
@@ -174,7 +265,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
                     isActive: true,
                     updatedAt: new Date().toISOString(),
                     lastConnectedAt: new Date().toISOString()
-                }, {merge: true});
+                }, { merge: true });
             } else { // Create new account
                 const gmailAccount = {
                     userId: userId as string,
@@ -196,7 +287,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             const accountDoc = await getDoc(accountDocRef);
             const savedAccount = {
                 id: accountDoc.id,
-                ... accountDoc.data()
+                ...accountDoc.data()
             };
 
             console.log('Gmail account saved:', savedAccount);
@@ -209,20 +300,20 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
                 }
             });
 
-            res.json({success: true, account: savedAccount});
+            res.json({ success: true, account: savedAccount });
         } catch (error) {
             console.error("Gmail OAuth callback error:", error);
-            res.status(500).json({message: "Failed to connect Gmail account"});
+            res.status(500).json({ message: "Failed to connect Gmail account" });
         }
     });
 
     // Email processing routes
     app.get("/api/emails", async (req, res) => {
         try {
-            const {userId} = req.query;
+            const { userId } = req.query;
 
             if (!userId) {
-                return res.status(400).json({message: "User ID is required"});
+                return res.status(400).json({ message: "User ID is required" });
             }
 
             const emailsCollection = getCollectionRef(COLLECTIONS.EMAILS);
@@ -239,7 +330,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
 
             res.json(emails);
         } catch (error) {
-            res.status(500).json({message: "Failed to fetch emails"});
+            res.status(500).json({ message: "Failed to fetch emails" });
         }
     });
 
@@ -252,7 +343,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             const emailsCollection = getCollectionRef(COLLECTIONS.EMAILS);
 
             const emailToStore = {
-                ... emailData,
+                ...emailData,
                 userId: emailData.userId || 'default-user',
                 createdAt: new Date().toISOString(),
                 receivedAt: emailData.receivedAt || new Date().toISOString(),
@@ -266,7 +357,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             const emailDocRef = await addDoc(emailsCollection, emailToStore);
             const savedEmail = {
                 id: emailDocRef.id,
-                ... emailToStore
+                ...emailToStore
             };
 
             broadcast({
@@ -277,36 +368,36 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
                 }
             });
 
-            res.json({email: savedEmail, analysis: null});
+            res.json({ email: savedEmail, analysis: null });
         } catch (error) {
             console.error('Failed to create email:', error);
-            res.status(500).json({message: "Failed to create email"});
+            res.status(500).json({ message: "Failed to create email" });
         }
     });
 
     // User routes
     app.get("/api/user/:id", async (req, res) => {
         try {
-            const {id} = req.params;
+            const { id } = req.params;
             const userDocRef = getDocRef(COLLECTIONS.USERS, id);
             const userDoc = await getDoc(userDocRef);
 
-            if (! userDoc.exists()) {
-                return res.status(404).json({message: "User not found"});
+            if (!userDoc.exists()) {
+                return res.status(404).json({ message: "User not found" });
             }
 
             res.json(userDoc.data());
         } catch (error) {
-            res.status(500).json({message: "Failed to fetch user"});
+            res.status(500).json({ message: "Failed to fetch user" });
         }
     });
 
     app.post("/api/user", async (req, res) => {
         try {
-            const {id, email, name} = req.body;
+            const { id, email, name } = req.body;
 
             if (!id || !email || !name) {
-                return res.status(400).json({message: "id, email, and name are required"});
+                return res.status(400).json({ message: "id, email, and name are required" });
             }
 
             const userDocRef = getDocRef(COLLECTIONS.USERS, id);
@@ -328,7 +419,7 @@ export async function registerRoutes(app : Express): Promise < Server > { // Par
             res.json(newUser);
         } catch (error) {
             console.error('Failed to create user:', error);
-            res.status(500).json({message: "Failed to create user"});
+            res.status(500).json({ message: "Failed to create user" });
         }
     });
 

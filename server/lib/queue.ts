@@ -1,4 +1,4 @@
-import {Queue, Worker, Job} from 'bullmq';
+import { Queue, Worker, Job } from 'bullmq';
 import Redis from 'ioredis';
 
 // Redis connection configuration
@@ -12,7 +12,7 @@ const redisConfig = {
 };
 
 // Create Redis connection (optional)
-export let redis: Redis |null = null;
+export let redis: Redis | null = null;
 
 // Only try to connect to Redis if explicitly enabled
 if (process.env.REDIS_ENABLED === 'true') {
@@ -48,9 +48,9 @@ export interface LearningJob {
 }
 
 // Create queues (only if Redis is available)
-export let emailProcessingQueue: Queue<EmailProcessingJob> |null = null;
-export let draftGenerationQueue: Queue<DraftGenerationJob> |null = null;
-export let learningQueue: Queue<LearningJob> |null = null;
+export let emailProcessingQueue: Queue<EmailProcessingJob> | null = null;
+export let draftGenerationQueue: Queue<DraftGenerationJob> | null = null;
+export let learningQueue: Queue<LearningJob> | null = null;
 
 if (redis) {
     emailProcessingQueue = new Queue<EmailProcessingJob>('email-processing', {
@@ -95,20 +95,18 @@ if (redis) {
 
 // Job processing functions
 export async function processEmailJob(job: Job<EmailProcessingJob>) {
-    const {emailId, userId, provider, emailData} = job.data;
+    const { emailId, userId, provider, emailData } = job.data;
 
     try {
         console.log(`[Job] 🔄 Processing email ${emailId} for user ${userId}`);
-        console.log(`[Job] Email subject: "${
-            emailData.subject
-        }", from: "${
-            emailData.from
-        }"`);
+        console.log(`[Job] Email subject: "${emailData.subject
+            }", from: "${emailData.from
+            }"`);
 
         // Import here to avoid circular dependencies
-        const {analyzeEmail} = await import ('./openai');
-        const {saveEmailAnalysis} = await import ('../services/email.service');
-        const {wsManager} = await import ('./websocket');
+        const { analyzeEmail } = await import('./openai');
+        const { saveEmailAnalysis } = await import('../services/email.service');
+        const { wsManager } = await import('./websocket');
 
         // Notify user that analysis is starting
         wsManager.notifyProcessingStatus(userId, {
@@ -164,7 +162,7 @@ export async function processEmailJob(job: Job<EmailProcessingJob>) {
         }
 
         console.log(`Email ${emailId} processed successfully`);
-        return {success: true, analysis};
+        return { success: true, analysis };
 
     } catch (error) {
         console.error(`Error processing email ${emailId}:`, error);
@@ -173,20 +171,18 @@ export async function processEmailJob(job: Job<EmailProcessingJob>) {
 }
 
 export async function processDraftGenerationJob(job: Job<DraftGenerationJob>) {
-    const {emailId, userId, emailAnalysis, userContext} = job.data;
+    const { emailId, userId, emailAnalysis, userContext } = job.data;
 
     try {
         console.log(`[Draft Job] 📝 Generating draft for email ${emailId}`);
-        console.log(`[Draft Job] Analysis: intent=${
-            emailAnalysis.intent
-        }, requiresResponse=${
-            emailAnalysis.requiresResponse
-        }`);
+        console.log(`[Draft Job] Analysis: intent=${emailAnalysis.intent
+            }, requiresResponse=${emailAnalysis.requiresResponse
+            }`);
 
         // Import services
-        const {generateSimpleResponse} = await import ('./openai');
-        const {saveDraftResponse} = await import ('../services/email.service');
-        const {wsManager} = await import ('./websocket');
+        const { generateSimpleResponse } = await import('./openai');
+        const { saveDraftResponse } = await import('../services/email.service');
+        const { wsManager } = await import('./websocket');
 
         // Notify user that draft generation is starting
         wsManager.notifyProcessingStatus(userId, {
@@ -203,7 +199,7 @@ export async function processDraftGenerationJob(job: Job<DraftGenerationJob>) {
 
         // Create draft in Gmail
         if (userContext.provider === 'gmail') {
-            const {GmailService} = await import ('../services/gmail.service');
+            const { GmailService } = await import('../services/gmail.service');
             const gmailService = new GmailService();
             await gmailService.createDraft(userId, emailId, draftResponse);
 
@@ -220,7 +216,7 @@ export async function processDraftGenerationJob(job: Job<DraftGenerationJob>) {
         }
 
         console.log(`Draft generated for email ${emailId}`);
-        return {success: true, draft: draftResponse};
+        return { success: true, draft: draftResponse };
 
     } catch (error) {
         console.error(`Error generating draft for email ${emailId}:`, error);
@@ -229,24 +225,24 @@ export async function processDraftGenerationJob(job: Job<DraftGenerationJob>) {
 }
 
 export async function processLearningJob(job: Job<LearningJob>) {
-    const {userId, accountId} = job.data;
+    const { userId, accountId } = job.data;
 
     try {
         console.log(`Processing learning for user ${userId}, account ${accountId}`);
 
         // Import services
-        const {processHistoricalEmails} = await import ('../services/learning.service');
-        const {GmailService} = await import ('../services/gmail.service');
-        const {updateEmailAccount, getEmailAccount} = await import ('../services/emailAccounts.service');
-        const {decrypt} = await import ('../utils/crypto');
+        const { processHistoricalEmails } = await import('../services/learning.service');
+        const { GmailService } = await import('../services/gmail.service');
+        const { updateEmailAccount, getEmailAccount } = await import('../services/emailAccounts.service');
+        const { decrypt } = await import('../utils/crypto');
 
         // Get the account details to retrieve stored tokens
         const account = await getEmailAccount(accountId, userId);
-        if (! account) {
+        if (!account) {
             throw new Error(`Account ${accountId} not found for user ${userId}`);
         }
 
-        if (! account.accessToken || ! account.refreshToken) {
+        if (!account.accessToken || !account.refreshToken) {
             throw new Error(`Missing tokens for account ${accountId}`);
         }
 
@@ -258,18 +254,17 @@ export async function processLearningJob(job: Job<LearningJob>) {
         const gmailService = new GmailService();
         const historicalEmails = await gmailService.getHistoricalEmailsForLearning(userId, 1000);
 
-        console.log(`Fetched ${
-            historicalEmails.length
-        } historical emails for learning`);
+        console.log(`Fetched ${historicalEmails.length
+            } historical emails for learning`);
 
         // Process the historical emails to extract patterns
         await processHistoricalEmails(userId, accountId, historicalEmails);
 
         // Mark learning as completed
-        await updateEmailAccount(accountId, userId, {learningCompleted: true});
+        await updateEmailAccount(accountId, userId, { learningCompleted: true });
 
         console.log(`Learning completed for user ${userId}, account ${accountId}`);
-        return {success: true};
+        return { success: true };
 
     } catch (error) {
         console.error(`Error processing learning for user ${userId}:`, error);
@@ -278,9 +273,9 @@ export async function processLearningJob(job: Job<LearningJob>) {
 }
 
 // Create workers (only if Redis is available)
-export let emailProcessingWorker: Worker<EmailProcessingJob> |null = null;
-export let draftGenerationWorker: Worker<DraftGenerationJob> |null = null;
-export let learningWorker: Worker<LearningJob> |null = null;
+export let emailProcessingWorker: Worker<EmailProcessingJob> | null = null;
+export let draftGenerationWorker: Worker<DraftGenerationJob> | null = null;
+export let learningWorker: Worker<LearningJob> | null = null;
 
 if (redis && emailProcessingQueue && draftGenerationQueue && learningQueue) {
     emailProcessingWorker = new Worker<EmailProcessingJob>('email-processing', processEmailJob, {
@@ -302,67 +297,61 @@ if (redis && emailProcessingQueue && draftGenerationQueue && learningQueue) {
 // Worker event handlers (only if workers exist)
 if (emailProcessingWorker) {
     emailProcessingWorker.on('completed', (job) => {
-        console.log(`Email processing job ${
-            job.id
-        } completed`);
+        console.log(`Email processing job ${job.id
+            } completed`);
     });
 
     emailProcessingWorker.on('failed', (job, err) => {
-        console.error(`Email processing job ${
-            job ?. id
-        } failed:`, err);
+        console.error(`Email processing job ${job?.id
+            } failed:`, err);
     });
 }
 
 if (draftGenerationWorker) {
     draftGenerationWorker.on('completed', (job) => {
-        console.log(`Draft generation job ${
-            job.id
-        } completed`);
+        console.log(`Draft generation job ${job.id
+            } completed`);
     });
 
     draftGenerationWorker.on('failed', (job, err) => {
-        console.error(`Draft generation job ${
-            job ?. id
-        } failed:`, err);
+        console.error(`Draft generation job ${job?.id
+            } failed:`, err);
     });
 }
 
 if (learningWorker) {
     learningWorker.on('completed', (job) => {
-        console.log(`Learning job ${
-            job.id
-        } completed`);
+        console.log(`Learning job ${job.id
+            } completed`);
     });
 
     learningWorker.on('failed', (job, err) => {
-        console.error(`Learning job ${
-            job ?. id
-        } failed:`, err);
+        console.error(`Learning job ${job?.id
+            } failed:`, err);
     });
 }
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
     console.log('Shutting down workers...');
-    if (emailProcessingWorker) 
+    if (emailProcessingWorker)
         await emailProcessingWorker.close();
-    
 
 
-    if (draftGenerationWorker) 
+
+    if (draftGenerationWorker)
         await draftGenerationWorker.close();
-    
 
 
-    if (learningWorker) 
+
+    if (learningWorker)
         await learningWorker.close();
-    
 
 
-    if (redis) 
+
+    if (redis)
         await redis.quit();
-    
+
 
 
     process.exit(0);
@@ -375,8 +364,7 @@ export async function addEmailProcessingJob(data: EmailProcessingJob) {
             priority: data.emailData.urgency === 'high' ? 1 : data.emailData.urgency === 'medium' ? 2 : 3
         });
     } else { // Process immediately if no queue available
-        return await processEmailJob({data}
-        as any);
+        return await processEmailJob({ data } as any);
     }
 }
 
@@ -384,8 +372,7 @@ export async function addDraftGenerationJob(data: DraftGenerationJob) {
     if (draftGenerationQueue) {
         return await draftGenerationQueue.add('generate-draft', data);
     } else { // Process immediately if no queue available
-        return await processDraftGenerationJob({data}
-        as any);
+        return await processDraftGenerationJob({ data } as any);
     }
 }
 
@@ -397,8 +384,7 @@ export async function addLearningJob(data: LearningJob) {
     } else { // Process immediately if no queue available (with error handling)
         setTimeout(async () => {
             try {
-                await processLearningJob({data}
-                as any);
+                await processLearningJob({ data } as any);
             } catch (error) {
                 console.error('Error in immediate learning job processing:', error);
                 // Don't crash the server - just log the error

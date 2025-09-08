@@ -1,13 +1,13 @@
 // server/routes/gmail.routes.ts
-import {Router} from 'express';
-import {GmailService, getAuthUrl, getTokensFromCode, getUserEmail} from '../services/gmail.service.js';
-import {authenticate} from '../middleware/auth.middleware.js';
-import {getEmailAnalysis, getDraftResponse, updateDraftStatus} from '../services/email.service.js';
-import {listEmailAccounts, upsertEmailAccount, updateEmailAccount} from '../services/emailAccounts.service.js';
-import {google} from 'googleapis';
+import { Router } from 'express';
+import { GmailService, getAuthUrl, getTokensFromCode, getUserEmail } from '../services/gmail.service.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import { getEmailAnalysis, getDraftResponse, updateDraftStatus } from '../services/email.service.js';
+import { listEmailAccounts, upsertEmailAccount, updateEmailAccount } from '../services/emailAccounts.service.js';
+import { google } from 'googleapis';
 import express from 'express';
-import {gmailLearningSimpleRouter} from './gmail-learning-simple.routes.js';
-import {GmailWatchService} from '../services/gmail-watch.service.js';
+import { gmailLearningSimpleRouter } from './gmail-learning-simple.routes.js';
+import { GmailWatchService } from '../services/gmail-watch.service.js';
 
 export const gmailRouter = Router();
 
@@ -38,28 +38,27 @@ gmailRouter.use('/', gmailLearningSimpleRouter);
 // Start OAuth flow
 gmailRouter.get('/auth', authenticate, (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
         const authUrl = getAuthUrl(userId);
-        res.json({authUrl});
+        res.json({ authUrl });
     } catch (error) {
         console.error('Error generating auth URL:', error);
-        res.status(500).json({error: 'Failed to generate authentication URL'});
+        res.status(500).json({ error: 'Failed to generate authentication URL' });
     }
 });
 
 // Handle OAuth callback
 gmailRouter.get('/auth/callback', async (req, res) => {
     try {
-        const {code, state: userId, error} = req.query;
+        const { code, state: userId, error } = req.query;
 
         if (error) {
             console.error('[OAuthCallback] OAuth error:', error);
-            return res.redirect(`/oauth/callback?error=${
-                encodeURIComponent(error as string)
-            }`);
+            return res.redirect(`/oauth/callback?error=${encodeURIComponent(error as string)
+                }`);
         }
 
         if (!code) {
@@ -76,7 +75,7 @@ gmailRouter.get('/auth/callback', async (req, res) => {
         const tokens = await getTokensFromCode(code as string);
 
         // Debug: Log token info (remove in production)
-        console.log('🔍 [DEBUG] Token lengths - Access:', tokens.access_token ?. length, 'Refresh:', tokens.refresh_token ?. length);
+        console.log('🔍 [DEBUG] Token lengths - Access:', tokens.access_token?.length, 'Refresh:', tokens.refresh_token?.length);
 
         // 2. Try to fetch user info (email)
         let email = null;
@@ -101,10 +100,10 @@ gmailRouter.get('/auth/callback', async (req, res) => {
         console.log('🔍 [DEBUG] Tokens stored successfully');
 
         // If email was not available at upsert, try to update it now
-        if (! email && accountRecord && accountRecord.id) {
+        if (!email && accountRecord && accountRecord.id) {
             try {
                 email = await getUserEmail(tokens);
-                await updateEmailAccount(accountRecord.id, userId as string, {email});
+                await updateEmailAccount(accountRecord.id, userId as string, { email });
             } catch (updateErr) {
                 console.error('[OAuthCallback] Error updating email in DB:', updateErr);
             }
@@ -115,41 +114,41 @@ gmailRouter.get('/auth/callback', async (req, res) => {
         // Historical learning will be triggered by the frontend learning dialog
 
         // Redirect to frontend callback page with success
-        res.redirect(`/oauth/callback?success=true&email=${
-            encodeURIComponent(email || '')
-        }`);
+        res.redirect(`/oauth/callback?success=true&email=${encodeURIComponent(email || '')
+            }`);
     } catch (error) {
         console.error('[OAuthCallback] Error:', error);
-        res.redirect(`/oauth/callback?error=${
-            encodeURIComponent('authentication_failed')
-        }`);
+        res.redirect(`/oauth/callback?error=${encodeURIComponent('authentication_failed')
+            }`);
     }
 });
 
 // Get connected accounts - USE AUTHENTICATION MIDDLEWARE
 gmailRouter.get('/accounts', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
 
         const accounts = await listEmailAccounts(userId);
+
         // Transform accounts to match frontend GmailAccount type
         const transformedAccounts = accounts.map(account => ({
             id: account.id || account.email, // Use email as fallback ID
             email: account.email,
             isActive: account.isActive || true,
             connectionStatus: (account.isActive && account.email && account.accessToken && account.refreshToken) ? 'connected' : 'error',
-            lastConnectedAt: account.createdAt || new Date().toISOString()
+            lastConnectedAt: account.createdAt || new Date().toISOString(),
+            autoDraftEnabled: account.autoDraftEnabled || false
         }));
 
         res.json(transformedAccounts);
-    } catch (error : any) {
+    } catch (error: any) {
         console.error('Error in /api/gmail/accounts:', error.message);
 
         if (error.code) {
-            return res.status(400).json({error: error.message, code: error.code, details: error.details});
+            return res.status(400).json({ error: error.message, code: error.code, details: error.details });
         }
 
         res.status(500).json({
@@ -159,12 +158,72 @@ gmailRouter.get('/accounts', authenticate, async (req, res) => {
     }
 });
 
+// Register Gmail watch for auto-draft functionality
+gmailRouter.post('/register-watch', authenticate, async (req, res) => {
+    try {
+        const userId = req.user?.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const { accountEmail } = req.body;
+        if (!accountEmail) {
+            return res.status(400).json({ error: 'accountEmail is required' });
+        }
+
+        console.log(`🔍 Registering Gmail watch for ${accountEmail} (user: ${userId})`);
+
+        const result = await GmailWatchService.registerWatchForAccount(userId, accountEmail);
+
+        if (!result) {
+            return res.status(400).json({ error: 'Failed to register Gmail watch' });
+        }
+
+        console.log(`✅ Gmail watch registered successfully for ${accountEmail}:`, result);
+
+        res.json({
+            success: true,
+            message: 'Gmail watch registered successfully',
+            data: result
+        });
+    } catch (error: any) {
+        console.error('Error registering Gmail watch:', error);
+        res.status(500).json({
+            error: 'Failed to register Gmail watch',
+            message: error.message
+        });
+    }
+});
+
+// Get watch statistics (admin endpoint)
+gmailRouter.get('/watch-stats', authenticate, async (req, res) => {
+    try {
+        const userId = req.user?.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const stats = await GmailWatchService.getWatchStatistics();
+
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error: any) {
+        console.error('Error getting watch statistics:', error);
+        res.status(500).json({
+            error: 'Failed to get watch statistics',
+            message: error.message
+        });
+    }
+});
+
 // Get user's emails (now with AI processing)
 gmailRouter.get('/emails', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
         const limit = parseInt(req.query.limit as string) || 10;
         const onlyNewEmails = req.query.onlyNew === 'true'; // Only process new emails for AI responses
@@ -184,108 +243,108 @@ gmailRouter.get('/emails', authenticate, async (req, res) => {
             const draft = await getDraftResponse(email.id, userId);
             return {
                 ...email,
-                analysis: analysis ?. analysis || null,
-                hasDraft: !! draft,
-                draftStatus: draft ?. status || null
+                analysis: analysis?.analysis || null,
+                hasDraft: !!draft,
+                draftStatus: draft?.status || null
             };
         }));
-        res.json({emails: emailsWithAI});
+        res.json({ emails: emailsWithAI });
     } catch (error) {
         console.error('Error fetching emails:', error);
-        res.status(500).json({error: 'Failed to fetch emails'});
+        res.status(500).json({ error: 'Failed to fetch emails' });
     }
 });
 
 // Get AI analysis for specific email
 gmailRouter.get('/emails/:emailId/analysis', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        const {emailId} = req.params;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        const { emailId } = req.params;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
         const analysis = await getEmailAnalysis(emailId, userId);
-        if (! analysis) {
-            return res.status(404).json({error: 'Analysis not found'});
+        if (!analysis) {
+            return res.status(404).json({ error: 'Analysis not found' });
         }
         res.json(analysis);
     } catch (error) {
         console.error('Error fetching email analysis:', error);
-        res.status(500).json({error: 'Failed to fetch analysis'});
+        res.status(500).json({ error: 'Failed to fetch analysis' });
     }
 });
 
 // Get AI-generated draft for specific email
 gmailRouter.get('/emails/:emailId/draft', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        const {emailId} = req.params;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        const { emailId } = req.params;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
         const draft = await getDraftResponse(emailId, userId);
-        if (! draft) {
-            return res.status(404).json({error: 'Draft not found'});
+        if (!draft) {
+            return res.status(404).json({ error: 'Draft not found' });
         }
         res.json(draft);
     } catch (error) {
         console.error('Error fetching draft:', error);
-        res.status(500).json({error: 'Failed to fetch draft'});
+        res.status(500).json({ error: 'Failed to fetch draft' });
     }
 });
 
 // Approve AI-generated draft
 gmailRouter.post('/emails/:emailId/draft/approve', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        const {emailId} = req.params;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        const { emailId } = req.params;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
         await updateDraftStatus(emailId, userId, 'approved');
-        res.json({success: true, message: 'Draft approved'});
+        res.json({ success: true, message: 'Draft approved' });
     } catch (error) {
         console.error('Error approving draft:', error);
-        res.status(500).json({error: 'Failed to approve draft'});
+        res.status(500).json({ error: 'Failed to approve draft' });
     }
 });
 
 // Reject AI-generated draft
 gmailRouter.post('/emails/:emailId/draft/reject', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        const {emailId} = req.params;
-        const {feedback} = req.body;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        const { emailId } = req.params;
+        const { feedback } = req.body;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
-        await updateDraftStatus(emailId, userId, 'rejected', {feedback});
-        res.json({success: true, message: 'Draft rejected'});
+        await updateDraftStatus(emailId, userId, 'rejected', { feedback });
+        res.json({ success: true, message: 'Draft rejected' });
     } catch (error) {
         console.error('Error rejecting draft:', error);
-        res.status(500).json({error: 'Failed to reject draft'});
+        res.status(500).json({ error: 'Failed to reject draft' });
     }
 });
 
 // Create a test draft
 gmailRouter.post('/create-test-draft', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const {to, subject, content} = req.body;
+        const { to, subject, content } = req.body;
 
         // Input validation
         if (to && (typeof to !== 'string' || to.length > 254)) {
-            return res.status(400).json({error: 'Invalid email address'});
+            return res.status(400).json({ error: 'Invalid email address' });
         }
         if (subject && (typeof subject !== 'string' || subject.length > 998)) {
-            return res.status(400).json({error: 'Subject too long (max 998 characters)'});
+            return res.status(400).json({ error: 'Subject too long (max 998 characters)' });
         }
         if (content && (typeof content !== 'string' || content.length > 50000)) {
-            return res.status(400).json({error: 'Content too long (max 50,000 characters)'});
+            return res.status(400).json({ error: 'Content too long (max 50,000 characters)' });
         }
 
 
@@ -307,18 +366,18 @@ gmailRouter.post('/create-test-draft', authenticate, async (req, res) => {
         };
 
 
-        const response = await gmail.users.drafts.create({userId: 'me', requestBody: draftMessage});
+        const response = await gmail.users.drafts.create({ userId: 'me', requestBody: draftMessage });
 
 
-        res.json({success: true, draftId: response.data.id, message: 'Test draft created successfully! Check your Gmail drafts folder.'});
-    } catch (error : any) {
+        res.json({ success: true, draftId: response.data.id, message: 'Test draft created successfully! Check your Gmail drafts folder.' });
+    } catch (error: any) {
         console.error('[Test Draft] ❌ Error creating test draft:', error);
         console.error('[Test Draft] Error details:', error.message);
         console.error('[Test Draft] Error stack:', error.stack);
 
         // Handle specific authentication errors
-        if (error.code === 401 || error.message ?. includes('Login Required')) {
-            return res.status(401).json({error: 'Gmail authentication expired. Please reconnect your Gmail account.', code: 'AUTH_EXPIRED'});
+        if (error.code === 401 || error.message?.includes('Login Required')) {
+            return res.status(401).json({ error: 'Gmail authentication expired. Please reconnect your Gmail account.', code: 'AUTH_EXPIRED' });
         }
 
         res.status(500).json({
@@ -331,10 +390,10 @@ gmailRouter.post('/create-test-draft', authenticate, async (req, res) => {
 // Debug endpoint to manually process a specific email
 gmailRouter.post('/emails/:emailId/process', authenticate, async (req, res) => {
     try {
-        const userId = req.user ?. uid;
-        const {emailId} = req.params;
-        if (! userId) {
-            return res.status(401).json({error: 'User not authenticated'});
+        const userId = req.user?.uid;
+        const { emailId } = req.params;
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
         }
 
         console.log(`[Debug] Manual processing requested for email ${emailId}`);
@@ -344,13 +403,13 @@ gmailRouter.post('/emails/:emailId/process', authenticate, async (req, res) => {
         // Fetch the specific email
         const gmail = await gmailService.getGmailClient(userId);
 
-        const emailResponse = await gmail.users.messages.get({userId: 'me', id: emailId, format: 'full'});
+        const emailResponse = await gmail.users.messages.get({ userId: 'me', id: emailId, format: 'full' });
 
         const email = emailResponse.data;
-        const headers = email.payload ?. headers || [];
-        const getHeader = (name : string) => {
-            const header = headers.find(h => h.name ?. toLowerCase() === name.toLowerCase());
-            return header ?. value || '';
+        const headers = email.payload?.headers || [];
+        const getHeader = (name: string) => {
+            const header = headers.find(h => h.name?.toLowerCase() === name.toLowerCase());
+            return header?.value || '';
         };
 
         const emailData = {
@@ -369,9 +428,9 @@ gmailRouter.post('/emails/:emailId/process', authenticate, async (req, res) => {
         // Force process with AI
         await gmailService.processEmailWithAI(userId, emailData);
 
-        res.json({success: true, message: 'Email processing triggered', emailData});
+        res.json({ success: true, message: 'Email processing triggered', emailData });
     } catch (error) {
         console.error('Error manually processing email:', error);
-        res.status(500).json({error: 'Failed to process email'});
+        res.status(500).json({ error: 'Failed to process email' });
     }
 });

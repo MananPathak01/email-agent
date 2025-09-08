@@ -9,9 +9,9 @@ import { TestConfig } from "./components/TestConfig";
 import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import ChatPage from "@/pages/chat";
+import ChatOldPage from "@/pages/chat-old";
 import EmailsPage from "@/pages/emails";
 import AnalyticsPage from "@/pages/analytics";
-import SettingsPage from "@/pages/settings";
 import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import OAuthCallback from "@/pages/OAuthCallback";
@@ -19,6 +19,8 @@ import PricingPage from "@/pages/pricing";
 import HelpPage from "@/pages/help";
 import TermsPage from "@/pages/terms";
 import DocsPage from "@/pages/docs";
+import TasksPage from "@/pages/tasks";
+import SettingsPage from "@/pages/settings";
 
 // Initialize React Query
 const queryClient = new QueryClient();
@@ -46,14 +48,14 @@ function App() {
         <TestConfig />
         <Switch>
           <Route path="/" component={RootRoute} />
-          
+
           {/* Public routes */}
           <Route path="/login">
             <PublicRoute>
               <LoginPage />
             </PublicRoute>
           </Route>
-          
+
           <Route path="/signup">
             <PublicRoute>
               <SignupPage />
@@ -63,10 +65,10 @@ function App() {
           <Route path="/help" component={HelpPage} />
           <Route path="/terms" component={TermsPage} />
           <Route path="/docs" component={DocsPage} />
-          
+
           {/* OAuth Callback Route */}
           <Route path="/oauth/callback" component={OAuthCallback} />
-          
+
           {/* Protected routes */}
           <Route path="/dashboard">
             <ProtectedRoute>
@@ -79,6 +81,25 @@ function App() {
               <ChatPage />
             </ProtectedRoute>
           </Route>
+
+          {/* Old chat page for reference */}
+          <Route path="/chat-old">
+            <ProtectedRoute>
+              <ChatOldPage />
+            </ProtectedRoute>
+          </Route>
+
+          <Route path="/tasks">
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          </Route>
+
+          <Route path="/settings">
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          </Route>
           <Route path="/emails">
             <ProtectedRoute>
               <EmailsPage />
@@ -89,11 +110,8 @@ function App() {
               <AnalyticsPage />
             </ProtectedRoute>
           </Route>
-<Route path="/settings">
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          </Route>
+
+
         </Switch>
       </QueryClientProvider>
     </AuthProvider>

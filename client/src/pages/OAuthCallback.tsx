@@ -13,7 +13,7 @@ export default function OAuthCallback() {
     const success = urlParams.get('success');
     const email = urlParams.get('email');
     const error = urlParams.get('error');
-    
+
     console.log('📧 OAuth callback URL params:', { success, email, error });
     console.log('📧 Full URL:', window.location.href);
 
@@ -21,16 +21,16 @@ export default function OAuthCallback() {
       console.error('OAuth error:', error);
       setStatus('error');
       setMessage(`Authentication failed: ${error}`);
-      
+
       // Notify parent window if this is a popup
       if (window.opener) {
         window.opener.postMessage({ type: 'oauth_error', error }, '*');
         window.close();
         return;
       }
-      
+
       setTimeout(() => {
-        setLocation(user ? '/dashboard' : '/login');
+        setLocation(user ? '/chat' : '/login');
       }, 3000);
       return;
     }
@@ -39,27 +39,27 @@ export default function OAuthCallback() {
       console.log('OAuth success! Email:', email);
       setStatus('success');
       setMessage(`Successfully connected ${email || 'Gmail account'}!`);
-      
+
       // Notify parent window if this is a popup
       if (window.opener) {
         console.log('📤 Sending OAuth success message with email:', email);
-        window.opener.postMessage({ 
-          type: 'oauth_success', 
-          data: { email, success: true } 
+        window.opener.postMessage({
+          type: 'oauth_success',
+          data: { email, success: true }
         }, '*');
-        
+
         // Close popup after a short delay to show success message
         setTimeout(() => {
           window.close();
         }, 1500);
         return;
       }
-      
+
       // If not a popup, redirect normally
       const redirectTimer = setTimeout(() => {
         if (!loading) {
           if (user) {
-            setLocation('/dashboard');
+            setLocation('/chat');
           } else {
             setLocation('/login');
           }
@@ -72,7 +72,7 @@ export default function OAuthCallback() {
     // If no success or error params, redirect based on auth state
     const fallbackTimer = setTimeout(() => {
       if (!loading) {
-        setLocation(user ? '/dashboard' : '/login');
+        setLocation(user ? '/chat' : '/login');
       }
     }, 1000);
 
@@ -89,7 +89,7 @@ export default function OAuthCallback() {
             <p className="text-gray-600">{message}</p>
           </>
         )}
-        
+
         {status === 'success' && (
           <>
             <div className="text-green-600 mb-4">
@@ -102,7 +102,7 @@ export default function OAuthCallback() {
             <p className="text-sm text-gray-500 mt-2">Redirecting to dashboard...</p>
           </>
         )}
-        
+
         {status === 'error' && (
           <>
             <div className="text-red-600 mb-4">

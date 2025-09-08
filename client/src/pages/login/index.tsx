@@ -15,21 +15,21 @@ const LoginPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
     }
-    
+
     try {
       setError('');
       setLoading(true);
-      
+
       // Store the redirect URL before login
       const params = new URLSearchParams(window.location.search);
-      const redirect = params.get('redirect') || '/dashboard';
+      const redirect = params.get('redirect') || '/chat';
       sessionStorage.setItem('redirectAfterLogin', redirect);
-      
+
       await login(email, password);
       // The actual redirect will be handled by the AuthProvider's onAuthStateChanged
     } catch (err) {
@@ -44,12 +44,12 @@ const LoginPage = () => {
     try {
       setError('');
       setLoading(true);
-      
+
       // Store the redirect URL before starting the sign-in flow
       const params = new URLSearchParams(window.location.search);
-      const redirect = params.get('redirect') || '/dashboard';
+      const redirect = params.get('redirect') || '/chat';
       sessionStorage.setItem('redirectAfterLogin', redirect);
-      
+
       await signInWithGoogle();
       // The actual redirect will be handled by the AuthProvider's onAuthStateChanged
     } catch (err) {
@@ -76,13 +76,13 @@ const LoginPage = () => {
               </Link>
             </p>
           </div>
-          
+
           {error && (
             <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
               {error}
             </div>
           )}
-          
+
           <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
@@ -136,8 +136,8 @@ const LoginPage = () => {
               </div>
 
               <div className="text-sm">
-                <Link 
-                  href="/forgot-password" 
+                <Link
+                  href="/forgot-password"
                   className="font-medium text-blue-600 hover:underline"
                   onClick={(e) => loading && e.preventDefault()}
                 >
@@ -179,10 +179,10 @@ const LoginPage = () => {
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-                    <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.28426 53.749 C -8.52426 55.059 -9.224 56.159 -10.144 56.859 L -10.144 60.329 L -6.464 60.329 C -4.564 58.639 -3.264 55.509 -3.264 51.509 Z"/>
-                    <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.864 60.329 L -10.544 56.859 C -11.554 57.589 -12.924 57.979 -14.754 57.979 C -17.884 57.979 -20.534 55.949 -21.464 53.119 L -25.274 53.119 L -25.274 56.589 C -23.294 60.539 -19.444 63.239 -14.754 63.239 Z"/>
-                    <path fill="#FBBC05" d="M -21.464 53.119 C -21.734 52.299 -21.864 51.429 -21.864 50.529 C -21.864 49.629 -21.724 48.759 -21.464 47.939 L -21.464 44.469 L -25.254 44.469 C -26.294 46.559 -26.754 48.899 -26.254 51.119 C -25.754 53.339 -24.254 55.239 -21.884 56.419 L -21.884 56.469 L -18.024 56.469 C -18.304 55.799 -18.494 55.059 -18.494 54.279 C -18.494 53.499 -18.304 52.759 -18.024 52.089 L -21.464 53.119 Z"/>
-                    <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.564 40.699 -11.474 39.739 -14.754 39.739 C -19.444 39.739 -23.294 42.439 -25.274 46.389 L -21.464 47.939 C -20.534 45.109 -17.884 43.989 -14.754 43.989 Z"/>
+                    <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.28426 53.749 C -8.52426 55.059 -9.224 56.159 -10.144 56.859 L -10.144 60.329 L -6.464 60.329 C -4.564 58.639 -3.264 55.509 -3.264 51.509 Z" />
+                    <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.864 60.329 L -10.544 56.859 C -11.554 57.589 -12.924 57.979 -14.754 57.979 C -17.884 57.979 -20.534 55.949 -21.464 53.119 L -25.274 53.119 L -25.274 56.589 C -23.294 60.539 -19.444 63.239 -14.754 63.239 Z" />
+                    <path fill="#FBBC05" d="M -21.464 53.119 C -21.734 52.299 -21.864 51.429 -21.864 50.529 C -21.864 49.629 -21.724 48.759 -21.464 47.939 L -21.464 44.469 L -25.254 44.469 C -26.294 46.559 -26.754 48.899 -26.254 51.119 C -25.754 53.339 -24.254 55.239 -21.884 56.419 L -21.884 56.469 L -18.024 56.469 C -18.304 55.799 -18.494 55.059 -18.494 54.279 C -18.494 53.499 -18.304 52.759 -18.024 52.089 L -21.464 53.119 Z" />
+                    <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.564 40.699 -11.474 39.739 -14.754 39.739 C -19.444 39.739 -23.294 42.439 -25.274 46.389 L -21.464 47.939 C -20.534 45.109 -17.884 43.989 -14.754 43.989 Z" />
                   </g>
                 </svg>
                 {loading ? 'Signing in...' : 'Google'}
@@ -191,8 +191,8 @@ const LoginPage = () => {
 
             <div className="text-sm text-center text-gray-600">
               Don't have an account?{' '}
-              <Link 
-                href="/signup" 
+              <Link
+                href="/signup"
                 className="font-medium text-blue-600 hover:underline"
                 onClick={(e) => loading && e.preventDefault()}
               >

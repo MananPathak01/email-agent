@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,6 +28,10 @@
   --success: hsl(158, 64%, 40%);
   --warning: hsl(38, 92%, 50%);
   --error: hsl(0, 84%, 55%);
+
+  /* Wizzy brand colors */
+  --brand-primary: #1F2937;
+  --brand-secondary: #4B5563;
 }
 
 .dark {
@@ -52,6 +58,10 @@
   --success: hsl(158, 64%, 40%);
   --warning: hsl(38, 92%, 50%);
   --error: hsl(0, 62%, 45%);
+
+  /* Wizzy brand colors */
+  --brand-primary: #1F2937;
+  --brand-secondary: #4B5563;
 }
 
 @layer base {
@@ -65,7 +75,7 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', 'Noto Sans', sans-serif;
   }
 
   .success {
@@ -114,6 +124,27 @@
 
   .border-error {
     border-color: hsl(var(--error));
+  }
+
+  /* Brand color utilities */
+  .bg-brand-primary {
+    background-color: var(--brand-primary);
+  }
+
+  .text-brand-primary {
+    color: var(--brand-primary);
+  }
+
+  .ring-brand-primary {
+    ring-color: var(--brand-primary);
+  }
+
+  .focus\:ring-brand-primary:focus {
+    --tw-ring-color: var(--brand-primary) !important;
+  }
+
+  .bg-brand-primary\/10 {
+    background-color: rgba(31, 41, 55, 0.1);
   }
 }
 
@@ -164,10 +195,10 @@
   }
 
   .loading-shimmer {
-    background: linear-gradient(90deg, 
-      hsla(var(--muted), 0.4) 25%, 
-      hsla(var(--muted), 0.6) 50%, 
-      hsla(var(--muted), 0.4) 75%);
+    background: linear-gradient(90deg,
+        hsla(var(--muted), 0.4) 25%,
+        hsla(var(--muted), 0.6) 50%,
+        hsla(var(--muted), 0.4) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -177,6 +208,7 @@
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -187,12 +219,16 @@
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
   }
 
-  .prose h1, .prose h2, .prose h3, .prose h4 {
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4 {
     color: hsl(var(--foreground));
   }
 

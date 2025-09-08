@@ -13,7 +13,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     const timer = setTimeout(() => {
       setIsInitialLoad(false);
     }, 0);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -47,7 +47,7 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   const [location, setLocation] = useLocation();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const params = new URLSearchParams(window.location.search);
-  const redirect = params.get('redirect') || '/dashboard';
+  const redirect = params.get('redirect') || '/chat';
   const isLandingPage = window.location.pathname === '/';
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     const timer = setTimeout(() => {
       setIsInitialLoad(false);
     }, 0);
-    
+
     return () => clearTimeout(timer);
   }, []);
 

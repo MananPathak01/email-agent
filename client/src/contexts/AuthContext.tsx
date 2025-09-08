@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { 
-  getAuth, 
-  onAuthStateChanged, 
-  User, 
-  GoogleAuthProvider, 
+import {
+  getAuth,
+  onAuthStateChanged,
+  User,
+  GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -42,25 +42,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Set up auth state listener
   useEffect(() => {
     let isMounted = true;
-    
+
     const handleAuthStateChange = async (firebaseUser: User | null) => {
       if (!isMounted) return;
-      
+
       try {
         setLoading(true);
-        
+
         if (firebaseUser) {
           // User is signed in
           const token = await firebaseUser.getIdToken();
           setToken(token);
-          
+
           // Get user data from Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          
+
           if (userDoc.exists()) {
             const userData = userDoc.data() as Omit<AppUser, 'uid'>;
-            setUser({ 
-              uid: firebaseUser.uid, 
+            setUser({
+              uid: firebaseUser.uid,
               email: userData.email || firebaseUser.email,
               displayName: userData.displayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               photoURL: userData.photoURL || firebaseUser.photoURL || '',
@@ -77,25 +77,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             };
-            
+
             await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
             setUser(newUser);
           }
-          
+
           // Handle redirect after successful login
           const currentPath = window.location.pathname;
           const isAuthPage = ['/login', '/signup'].includes(currentPath);
           const isOAuthCallback = currentPath === '/oauth/callback';
           const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
-          
+
           if (isAuthPage) {
             sessionStorage.removeItem('redirectAfterLogin');
             // Use a small timeout to ensure the state is updated before redirecting
             setTimeout(() => {
-              window.location.href = redirectUrl || '/dashboard';
+              window.location.href = redirectUrl || '/chat';
             }, 100);
           }
-          
+
           // Don't auto-redirect from OAuth callback - let the callback page handle it
           if (isOAuthCallback) {
             // OAuth callback page will handle its own redirect logic
@@ -116,10 +116,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     };
-    
+
     // Set up the auth state listener
     const unsubscribe = onAuthStateChanged(auth, handleAuthStateChange);
-    
+
     // Clean up the listener when the component unmounts
     return () => {
       isMounted = false;
@@ -143,7 +143,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Email/Password Signup
   const signup = async (email: string, password: string, displayName: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    
+
     // Update user profile with display name
     if (auth.currentUser) {
       await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(true);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      
+
       // Check if user exists in Firestore, if not create
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
       if (!userDoc.exists()) {

@@ -24,7 +24,7 @@ if (process.env.NODE_ENV === 'development') {
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 httpServer.listen(PORT, '0.0.0.0', async () => {
-    console.log('Server running on http://localhost:' + PORT);
+    console.log(`Server running on port ${PORT}`);
 
     // Start watch maintenance service for PubSub
     const { WatchMaintenanceService } = await import('./services/watch-maintenance.service.js');

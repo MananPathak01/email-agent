@@ -23,7 +23,7 @@ export class IncomingEmailService { /** Process a Pub/Sub notification for a giv
         const userId = userRef.id;
 
         // Check if auto-draft is enabled for this account
-        const autoDraftEnabled = accountData.autoDraftEnabled;
+        const autoDraftEnabled = accountData.autoDraftEnabled || false; // Default to false if not set
         const autoDraftSettings = accountData.autoDraftSettings;
 
         console.log(`🔍 [Incoming] Auto-draft status for ${emailAddress}:`, {

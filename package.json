@@ -7,7 +7,7 @@
         "dev:client": "vite --port 5173",
         "build": "vite build",
         "vercel-build": "vite build",
-        "start": "cross-env NODE_ENV=production node dist/index.js",
+        "start": "cross-env NODE_ENV=production tsx -r dotenv/config server/index.ts",
         "check": "tsc",
         "collect-emails": "tsx -r dotenv/config scripts/run-collector.ts",
         "test-gmail": "tsx -r dotenv/config scripts/test-gmail-connection.ts",

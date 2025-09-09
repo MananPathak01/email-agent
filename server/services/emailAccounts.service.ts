@@ -221,8 +221,18 @@ export class EmailAccountsService {
     ) {
         try {
             const accountRef = getAccountsCollection(userId).doc(accountId);
+            
+            // Filter out undefined values to avoid Firestore errors
+            const cleanSettings: any = {};
+            if (settings.tone !== undefined) {
+                cleanSettings.tone = settings.tone;
+            }
+            if (settings.customInstructions !== undefined) {
+                cleanSettings.customInstructions = settings.customInstructions;
+            }
+            
             await accountRef.update({
-                autoDraftSettings: settings,
+                autoDraftSettings: cleanSettings,
                 updatedAt: Timestamp.now()
             });
             return { success: true };

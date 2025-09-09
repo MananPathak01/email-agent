@@ -135,7 +135,7 @@ gmailRouter.get('/accounts', authenticate, async (req, res) => {
 
         // Transform accounts to match frontend GmailAccount type
         const transformedAccounts = accounts.map(account => ({
-            id: account.id || account.email, // Use email as fallback ID
+            id: account.id, // Use the actual Firestore document ID
             email: account.email,
             isActive: account.isActive || true,
             connectionStatus: (account.isActive && account.email && account.accessToken && account.refreshToken) ? 'connected' : 'error',
@@ -171,7 +171,18 @@ gmailRouter.post('/register-watch', authenticate, async (req, res) => {
             return res.status(400).json({ error: 'accountEmail is required' });
         }
 
-        console.log(`🔍 Registering Gmail watch for ${accountEmail} (user: ${userId})`);
+        // Check if auto-draft is enabled for this account before registering watch
+        const { getEmailAccount } = await import('../services/emailAccounts.service.js');
+        const account = await getEmailAccount(accountEmail, userId);
+
+        if (!account || !account.autoDraftEnabled) {
+            return res.status(400).json({
+                error: 'Auto-draft is not enabled for this account',
+                message: 'Only accounts with auto-draft enabled can register Gmail watches'
+            });
+        }
+
+        console.log(`🔍 Registering Gmail watch for ${accountEmail} (user: ${userId}) - auto-draft enabled`);
 
         const result = await GmailWatchService.registerWatchForAccount(userId, accountEmail);
 

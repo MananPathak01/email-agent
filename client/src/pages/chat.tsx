@@ -61,6 +61,7 @@ export default function ChatPage() {
     const [showProviderDialog, setShowProviderDialog] = useState(false);
     const [isConnectingGmail, setIsConnectingGmail] = useState(false);
     const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+    const [isTogglingAutoDraft, setIsTogglingAutoDraft] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -293,8 +294,9 @@ export default function ChatPage() {
     };
 
     const handleAutoDraftToggle = async (enabled: boolean) => {
-        if (!hasConnectedEmails) return;
+        if (!hasConnectedEmails || isTogglingAutoDraft) return;
 
+        setIsTogglingAutoDraft(true);
         try {
             // Update all connected email accounts
             const updatePromises = gmailAccounts.map(account =>
@@ -313,6 +315,8 @@ export default function ChatPage() {
         } catch (error) {
             console.error('Error updating auto-draft state:', error);
             toast.error('Failed to update auto-draft state. Please try again.');
+        } finally {
+            setIsTogglingAutoDraft(false);
         }
     };
 
@@ -336,19 +340,19 @@ export default function ChatPage() {
                                 <h3 className="text-base font-semibold text-gray-800">Auto Draft Replies</h3>
                                 <button
                                     type="button"
-                                    className={`${autoDraftEnabled ? 'bg-gray-800' : 'bg-gray-200'} relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-offset-2 ${!hasConnectedEmails
+                                    className={`${autoDraftEnabled ? 'bg-gray-800' : 'bg-gray-200'} relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-offset-2 ${!hasConnectedEmails || isTogglingAutoDraft
                                         ? 'cursor-not-allowed opacity-50 hover:bg-gray-300 hover:opacity-60'
                                         : 'cursor-pointer hover:bg-gray-700'
                                         }`}
                                     onClick={() => {
-                                        if (hasConnectedEmails) {
+                                        if (hasConnectedEmails && !isTogglingAutoDraft) {
                                             handleAutoDraftToggle(!autoDraftEnabled);
                                         }
                                     }}
                                     role="switch"
                                     aria-checked={autoDraftEnabled}
-                                    disabled={!hasConnectedEmails}
-                                    title={!hasConnectedEmails ? "Connect an email account to enable auto-draft replies" : "Toggle auto-draft replies"}
+                                    disabled={!hasConnectedEmails || isTogglingAutoDraft}
+                                    title={!hasConnectedEmails ? "Connect an email account to enable auto-draft replies" : isTogglingAutoDraft ? "Updating..." : "Toggle auto-draft replies"}
                                 >
                                     <span className="sr-only">Auto-draft emails</span>
                                     <span
@@ -362,8 +366,13 @@ export default function ChatPage() {
                                         onClick={() => setShowSettingsDialog(true)}
                                         className="ml-2 h-8 w-8 p-0"
                                         title="Customize auto-draft settings"
+                                        disabled={isTogglingAutoDraft}
                                     >
-                                        <Settings className="h-4 w-4" />
+                                        {isTogglingAutoDraft ? (
+                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                                        ) : (
+                                            <Settings className="h-4 w-4" />
+                                        )}
                                     </Button>
                                 )}
                             </div>

@@ -19,10 +19,24 @@ export class GmailWatchService {
         historyId: string;
         expiration?: string
     } | null> {
+        // Check if watch already exists and is still valid
+        const existingWatch = await this.getAccountWatchState(userId, accountEmail);
+        if (existingWatch?.watchTopic && existingWatch?.watchExpiresAt) {
+            const expirationDate = new Date(existingWatch.watchExpiresAt);
+            if (expirationDate > new Date()) {
+                // Watch is still valid, no need to register again
+                return {
+                    historyId: existingWatch.lastHistoryId || '0',
+                    expiration: existingWatch.watchExpiresAt
+                };
+            }
+        }
+
         const gmailService = new GmailService();
         const tokens = await gmailService.getStoredTokensForEmail(userId, accountEmail);
-        if (!tokens)
+        if (!tokens) {
             return null;
+        }
 
         const refreshed = await gmailService.refreshTokensIfNeeded(userId, tokens);
 
@@ -34,18 +48,23 @@ export class GmailWatchService {
 
         const topicName = this.getTopicName();
 
-        const res = await gmail.users.watch(
-            {
-                userId: 'me',
-                requestBody: {
-                    topicName,
-                    labelIds: [
-                        'INBOX', 'CATEGORY_PERSONAL'
-                    ],
-                    labelFilterAction: 'include'
+        let res;
+        try {
+            res = await gmail.users.watch(
+                {
+                    userId: 'me',
+                    requestBody: {
+                        topicName,
+                        labelIds: [
+                            'INBOX', 'CATEGORY_PERSONAL'
+                        ],
+                        labelFilterAction: 'include'
+                    }
                 }
-            }
-        );
+            );
+        } catch (error) {
+            throw error;
+        }
 
         const historyId = res.data.historyId as string;
         const expiration = res.data.expiration ? String(res.data.expiration) : undefined;
@@ -58,6 +77,26 @@ export class GmailWatchService {
         });
 
         return { historyId, expiration };
+    }
+
+    static async getAccountWatchState(userId: string, accountEmail: string) {
+        try {
+            const snap = await adminDb.collection('users').doc(userId).collection('email_accounts').where('email', '==', accountEmail).limit(1).get();
+
+            if (snap.empty) {
+                return null;
+            }
+
+            const accountData = snap.docs[0].data();
+            return {
+                lastHistoryId: accountData.lastHistoryId,
+                watchTopic: accountData.watchTopic,
+                watchExpiresAt: accountData.watchExpiresAt
+            };
+        } catch (error) {
+            console.error('Error getting account watch state:', error);
+            return null;
+        }
     }
 
     static async updateAccountWatchState(userId: string, accountEmail: string, data: any) { // Find the account doc by email
@@ -78,12 +117,9 @@ export class GmailWatchService {
      */
     static async stopWatchForAccount(userId: string, accountEmail: string): Promise<boolean> {
         try {
-            console.log(`🛑 [GmailWatch] Stopping watch for ${accountEmail} (user: ${userId})`);
-
             const gmailService = new GmailService();
             const tokens = await gmailService.getStoredTokensForEmail(userId, accountEmail);
             if (!tokens) {
-                console.warn(`[GmailWatch] No tokens found for ${accountEmail}`);
                 return false;
             }
 
@@ -104,10 +140,8 @@ export class GmailWatchService {
                 lastHistoryId: null
             });
 
-            console.log(`✅ [GmailWatch] Successfully stopped watch for ${accountEmail}`);
             return true;
         } catch (error: any) {
-            console.error(`❌ [GmailWatch] Error stopping watch for ${accountEmail}:`, error.message);
             return false;
         }
     }

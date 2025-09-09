@@ -114,45 +114,33 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
     // Register Chat routes with authentication
     app.use('/api/chat', chatRouter);
 
+
     // Pub/Sub push webhook for Gmail notifications
     // Endpoint: POST /webhooks/pubsub/gmail
     // Expects body: { message: { data: base64(JSON{"emailAddress","historyId"}), attributes?: {...} }, subscription: string }
     app.post('/webhooks/pubsub/gmail', async (req, res) => {
+        console.log('🔔 [Webhook] Received Gmail webhook!');
         try {
-            console.log('🔔 [PubSub] Received webhook:', JSON.stringify(req.body, null, 2));
-
             const msg = req.body?.message;
             if (!msg || !msg.data) {
-                console.log('❌ [PubSub] Invalid message format');
                 return res.status(400).json({ error: 'Invalid Pub/Sub message' });
             }
-
-            // Optional: verify Google-signed JWT in Authorization header (to be implemented for production)
-            // const authHeader = req.header('Authorization');
-            // TODO: verify JWT audience/issuer against env config
 
             const decoded = JSON.parse(Buffer.from(msg.data, 'base64').toString('utf8')) as {
                 emailAddress: string;
                 historyId: string | number
             };
 
-            console.log('🔍 [PubSub] Decoded message:', decoded);
-
             if (!decoded?.emailAddress || !decoded?.historyId) {
-                console.log('❌ [PubSub] Missing emailAddress or historyId');
                 return res.status(400).json({ error: 'Missing emailAddress or historyId' });
             }
 
-            console.log(`📧 [PubSub] Processing notification for ${decoded.emailAddress} with historyId ${decoded.historyId}`);
-
             // Process asynchronously but ack immediately to Pub/Sub
-            IncomingEmailService.processNotification(decoded.emailAddress, decoded.historyId).catch((e) => console.error('[PubSub] Processing error:', e));
+            IncomingEmailService.processNotification(decoded.emailAddress, decoded.historyId).catch((e) => console.error('❌ [PubSub] Processing error:', e));
 
-            // Acknowledge receipt
-            console.log('✅ [PubSub] Acknowledged receipt');
             return res.status(204).send();
         } catch (err: any) {
-            console.error('[PubSub] Handler error:', err?.message || err);
+            console.error('❌ [PubSub] Handler error:', err?.message || err);
             return res.status(500).json({ error: 'Internal error' });
         }
     });

@@ -195,13 +195,34 @@ router.put('/auto-draft-enabled', authenticate, async (req, res) => {
 
         await updateAutoDraftEnabled(accountId, userId, enabled);
 
+        // Get email address for watch service
+        const { getEmailAccount } = await import('../services/emailAccounts.service.js');
+        const account = await getEmailAccount(accountId, userId);
+
+        if (!account) {
+            return res.status(404).json({
+                error: 'Email account not found',
+                message: 'Could not find email account to manage watch'
+            });
+        }
+
         // Manage Gmail watch based on auto-draft state
         if (enabled) {
-            console.log(`✅ Auto-draft enabled - registering Gmail watch`);
-            await GmailWatchService.registerWatchForAccount(userId, accountId);
+            console.log(`🔧 [AutoDraft] Registering watch for ${account.email}...`);
+            try {
+                await GmailWatchService.registerWatchForAccount(userId, account.email);
+                console.log(`✅ [AutoDraft] Successfully registered watch for ${account.email}`);
+            } catch (error) {
+                console.error(`❌ [AutoDraft] Failed to register watch for ${account.email}:`, error);
+            }
         } else {
-            console.log(`⏸️ Auto-draft disabled - stopping Gmail watch`);
-            await GmailWatchService.stopWatchForAccount(userId, accountId);
+            console.log(`🔧 [AutoDraft] Stopping watch for ${account.email}...`);
+            try {
+                await GmailWatchService.stopWatchForAccount(userId, account.email);
+                console.log(`✅ [AutoDraft] Successfully stopped watch for ${account.email}`);
+            } catch (error) {
+                console.error(`❌ [AutoDraft] Failed to stop watch for ${account.email}:`, error);
+            }
         }
 
         res.json({

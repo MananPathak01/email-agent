@@ -1,7 +1,7 @@
-import {defineConfig} from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import {fileURLToPath} from 'url';
-import {dirname, resolve} from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,11 +30,11 @@ export default defineConfig(async () => {
                     changeOrigin: true,
                     secure: false,
                     ws: true,
-                    configure: (proxy : any, _options : any) => {
-                        proxy.on('error', (err : Error, _req : any, _res : any) => {
+                    configure: (proxy: any, _options: any) => {
+                        proxy.on('error', (err: Error, _req: any, _res: any) => {
                             console.error('Proxy error:', err);
                         });
-                        proxy.on('proxyReq', (proxyReq : any, req : any, _res : any) => {
+                        proxy.on('proxyReq', (proxyReq: any, req: any, _res: any) => {
                             console.log('Proxying request:', req.method, req.url);
                         });
                     }
@@ -56,7 +56,12 @@ export default defineConfig(async () => {
         },
         build: {
             outDir: resolve(__dirname, "dist"),
-            emptyOutDir: true
+            emptyOutDir: true,
+            rollupOptions: {
+                output: {
+                    manualChunks: undefined
+                }
+            }
         }
     };
 });

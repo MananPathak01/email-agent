@@ -1,0 +1,12 @@
+client/
+dist/
+.vercel/
+vercel.json
+.vercelignore
+*.md
+docs/
+prompts/
+data/
+.replit
+replit.md
+gemini.md

@@ -31,7 +31,11 @@ export async function apiRequest(
     }
   }
 
-  const res = await fetch(url, {
+  // Use environment variable for API base URL, fallback to relative URL for development
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+  const fullUrl = baseURL + url;
+
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -48,7 +52,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
-      const res = await fetch(queryKey.join("/") as string, {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const url = baseURL + queryKey.join("/");
+
+      const res = await fetch(url, {
         credentials: "include",
       });
 

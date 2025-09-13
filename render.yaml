@@ -5,6 +5,7 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm run start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -15,4 +16,15 @@ services:
     #   value: your_project_id
     # - key: GOOGLE_CLIENT_ID
     #   value: your_google_client_id
-    # etc...
+    # - key: FIREBASE_PRIVATE_KEY
+    #   value: your_firebase_private_key
+    # - key: FIREBASE_CLIENT_EMAIL
+    #   value: your_firebase_client_email
+    # - key: GOOGLE_CLIENT_SECRET
+    #   value: your_google_client_secret
+    # - key: OPENAI_API_KEY
+    #   value: your_openai_api_key
+    # - key: GROQ_API_KEY
+    #   value: your_groq_api_key
+    # - key: REDIS_URL
+    #   value: your_redis_url

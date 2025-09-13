@@ -8,7 +8,13 @@ import cors from 'cors';
 const app = express();
 
 app.use(cors({
-    origin: true,
+    origin: [
+        'http://localhost:5173', // Vite dev server
+        'http://localhost:3000', // Alternative dev port
+        'https://your-app.vercel.app', // Replace with your Vercel URL
+        'https://yourdomain.com', // Replace with your custom domain
+        'https://www.yourdomain.com' // Replace with www subdomain if using
+    ],
     credentials: true
 }));
 

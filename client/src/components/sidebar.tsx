@@ -86,7 +86,7 @@ export default function Sidebar() {
       id: "dashboard",
       icon: Bot,
       label: "Email Agent",
-      path: "/dashboard"
+      path: "/chat"
     },
     {
       id: "emails",

@@ -11,7 +11,7 @@ export default function Header() {
 
   const handleSignIn = () => setLocation("/login");
   const handleSignUp = () => setLocation("/signup");
-  const handleDashboard = () => setLocation("/dashboard");
+  const handleDashboard = () => setLocation("/chat");
 
   const navLinks = [
     { label: "Features", onClick: () => setLocation("/#features") },

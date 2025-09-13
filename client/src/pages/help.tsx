@@ -11,7 +11,7 @@ export default function HelpPage() {
         <div className="max-w-2xl mx-auto text-left space-y-8">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-2">How do I connect my email account?</h2>
-            <p className="text-gray-700">Go to your dashboard, click on 'Connect Email', and follow the OAuth prompts for Gmail. Your account will be securely linked in seconds.</p>
+            <p className="text-gray-700">Go to your chat interface, click on 'Connect Email', and follow the OAuth prompts for Gmail. Your account will be securely linked in seconds.</p>
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-2">What does the AI agent do with my emails?</h2>

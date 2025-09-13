@@ -99,7 +99,7 @@ export default function OAuthCallback() {
             </div>
             <h1 className="text-2xl font-bold mb-2 text-green-600">Success!</h1>
             <p className="text-gray-600">{message}</p>
-            <p className="text-sm text-gray-500 mt-2">Redirecting to dashboard...</p>
+            <p className="text-sm text-gray-500 mt-2">Redirecting to chat...</p>
           </>
         )}
 
@@ -112,7 +112,7 @@ export default function OAuthCallback() {
             </div>
             <h1 className="text-2xl font-bold mb-2 text-red-600">Error</h1>
             <p className="text-gray-600">{message}</p>
-            <p className="text-sm text-gray-500 mt-2">Redirecting to dashboard...</p>
+            <p className="text-sm text-gray-500 mt-2">Redirecting to chat...</p>
           </>
         )}
       </div>

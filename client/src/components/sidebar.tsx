@@ -160,12 +160,20 @@ export default function Sidebar() {
       // Get the auth URL
       const idToken = await currentUser.getIdToken();
       const baseURL = 'https://email-agent-1-4duk.onrender.com';
-      const response = await fetch(baseURL + '/api/gmail/auth', {
+      const fullUrl = baseURL + '/api/gmail/auth';
+      
+      console.log('🔍 Making Gmail auth request to:', fullUrl);
+      console.log('🔍 With token:', idToken ? 'Present' : 'Missing');
+      
+      const response = await fetch(fullUrl, {
         headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
         }
       });
+      
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorData = await response.text();

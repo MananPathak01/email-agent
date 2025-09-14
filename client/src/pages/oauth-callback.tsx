@@ -23,7 +23,8 @@ export default function OAuthCallback() {
 
       if (code && user) {
         try {
-          const response = await fetch('/api/auth/gmail/callback', {
+          const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+          const response = await fetch(baseURL + '/api/auth/gmail/callback', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

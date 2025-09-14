@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,9 +23,9 @@ import { ConnectEmailDialog } from "./dialogs/ConnectEmailDialog";
 import { EmailLearningDialog } from "./dialogs/EmailLearningDialog";
 import { EmailContextDialog, EmailContext } from "./dialogs/EmailContextDialog";
 import { useCreateTestDraft } from "@/hooks/useGmailApi";
-import { 
-  Mail, Plus, Loader2, Send, Inbox, 
-  SendHorizonal, Trash, FileText, Settings, 
+import {
+  Mail, Plus, Loader2, Send, Inbox,
+  SendHorizonal, Trash, FileText, Settings,
   LogOut, ChevronDown, ChevronUp, Check, X, Bot, MessageCircle, BarChart3, Edit
 } from "lucide-react";
 
@@ -108,8 +108,8 @@ export default function Sidebar() {
   }, [location]);
 
   // Fetch connected Gmail accounts with proper type safety
-  const { 
-    data: gmailAccounts = [], 
+  const {
+    data: gmailAccounts = [],
     isLoading: isLoadingAccounts,
     error: accountsError,
     refetch: refetchAccounts
@@ -117,21 +117,22 @@ export default function Sidebar() {
     queryKey: ['gmailAccounts'],
     queryFn: async (): Promise<GmailAccount[]> => {
       if (!user || !auth.currentUser) return [];
-      
+
       const idToken = await auth.currentUser.getIdToken();
-      const response = await fetch('/api/gmail/accounts', {
-        headers: { 
+      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(baseURL + '/api/gmail/accounts', {
+        headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Failed to fetch accounts:', errorData);
         throw new Error(`Failed to fetch accounts: ${response.status} ${errorData}`);
       }
-      
+
       return response.json();
     },
     enabled: !!user && !!auth.currentUser,
@@ -147,40 +148,41 @@ export default function Sidebar() {
   const connectGmailMutation = useMutation({
     mutationFn: async (): Promise<void> => {
       if (!user) throw new Error('User not authenticated');
-      
+
       // Get the Firebase auth instance and current user
       const auth = getAuth();
       const currentUser = auth.currentUser;
-      
+
       if (!currentUser) {
         throw new Error('No authenticated Firebase user found');
       }
-      
+
       // Get the auth URL
       const idToken = await currentUser.getIdToken();
-      const response = await fetch('/api/gmail/auth', {
-        headers: { 
+      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(baseURL + '/api/gmail/auth', {
+        headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         throw new Error(`Failed to get auth URL: ${response.status} ${errorData}`);
       }
-      
+
       const { authUrl } = await response.json();
-      
+
       if (!authUrl) {
         throw new Error('No auth URL received from server');
       }
-      
+
       // Open OAuth popup with better dimensions and positioning
       const popup = window.open(
         authUrl,
         'gmail-oauth',
-        'width=500,height=600,scrollbars=yes,resizable=yes,left=' + 
+        'width=500,height=600,scrollbars=yes,resizable=yes,left=' +
         (window.screen.width / 2 - 250) + ',top=' + (window.screen.height / 2 - 300)
       );
 
@@ -194,19 +196,19 @@ export default function Sidebar() {
             'http://localhost:5000', // backend server
             'http://localhost:3001'  // alternative backend port
           ];
-          
+
           if (!allowedOrigins.includes(event.origin)) {
             console.log('❌ Message origin not allowed:', event.origin, 'allowed:', allowedOrigins);
             return;
           }
-          
+
           if (event.data.type === 'oauth_success') {
             window.removeEventListener('message', messageListener);
             if (popup && !popup.closed) {
               popup.close();
             }
             // Extract the Gmail email address from the callback data
-                        const gmailEmail = event.data.data?.email;
+            const gmailEmail = event.data.data?.email;
             if (gmailEmail) {
               setConnectedEmail(gmailEmail);
               // Open learning dialog immediately, skipping context
@@ -249,9 +251,9 @@ export default function Sidebar() {
     onSuccess: () => {
       toast.success('Gmail account connected successfully!');
       setIsConnectDialogOpen(false);
-      
+
       // Context dialog is now opened in the message listener after email is captured
-      
+
       // Refresh accounts immediately
       queryClient.invalidateQueries({ queryKey: ['gmailAccounts'] });
     },
@@ -269,11 +271,11 @@ export default function Sidebar() {
       if (!user) {
         throw new Error('User not authenticated');
       }
-      
+
       const idToken = await user.getIdToken();
       const response = await fetch('/api/emails', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
@@ -287,7 +289,7 @@ export default function Sidebar() {
         const error = await response.json();
         throw new Error(error.message || 'Failed to add email');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -383,7 +385,7 @@ export default function Sidebar() {
     });
   }, []);
 
-  
+
 
   // Get user initials safely
   const getUserInitials = useCallback(() => {
@@ -457,7 +459,7 @@ export default function Sidebar() {
           {accountsError ? (
             <div className="text-xs text-red-600 p-2 bg-red-100 rounded-md">
               Failed to load accounts. Please try refreshing the page.
-              <button 
+              <button
                 onClick={() => queryClient.refetchQueries({ queryKey: ['/api/gmail/accounts', userId] })}
                 className="ml-2 text-gray-700 underline hover:no-underline font-semibold"
               >
@@ -502,7 +504,7 @@ export default function Sidebar() {
             <Plus className="h-4 w-4 mr-2" />
             Connect Email
           </Button>
-          
+
           {/* Temporary debug button */}
           <Button
             variant="outline"
@@ -523,9 +525,9 @@ export default function Sidebar() {
       <div className="p-3 border-t border-border bg-white">
         <div className="flex flex-col items-center space-y-1">
           <Avatar className="w-9 h-9 border border-gray-200">
-            <AvatarImage 
-              src={user?.photoURL || ''} 
-              alt={user?.displayName || 'User'} 
+            <AvatarImage
+              src={user?.photoURL || ''}
+              alt={user?.displayName || 'User'}
             />
             <AvatarFallback className="bg-gray-300 text-gray-700 text-base">
               {getUserInitials()}
@@ -537,8 +539,8 @@ export default function Sidebar() {
           </div>
         </div>
         <div className="flex items-center justify-center space-x-1 mt-2">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="hover:bg-gray-100 text-gray-500 hover:text-gray-900"
             onClick={() => handleNavigate("/settings")}
@@ -546,8 +548,8 @@ export default function Sidebar() {
           >
             <Settings className="w-4 h-4" />
           </Button>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="hover:bg-gray-100 text-gray-500 hover:text-gray-900"
             onClick={handleSignOut}

@@ -77,7 +77,8 @@ export default function ChatPage() {
             if (!user || !auth.currentUser) return [];
 
             const idToken = await auth.currentUser.getIdToken();
-            const response = await fetch('/api/gmail/accounts', {
+            const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+            const response = await fetch(baseURL + '/api/gmail/accounts', {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                     'Content-Type': 'application/json'
@@ -130,7 +131,8 @@ export default function ChatPage() {
 
             // Get the auth URL
             const idToken = await currentUser.getIdToken();
-            const response = await fetch('/api/gmail/auth', {
+            const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+            const response = await fetch(baseURL + '/api/gmail/auth', {
                 headers: {
                     'Authorization': `Bearer ${idToken}`,
                     'Content-Type': 'application/json'

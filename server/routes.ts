@@ -225,12 +225,8 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
                 return res.status(400).json({ message: "Code and userId are required" });
             }
 
-            // Check if user exists in our database
-            const userDocRef = getDocRef(COLLECTIONS.USERS, userId as string);
-            const userDoc = await getDoc(userDocRef);
-            if (!userDoc.exists()) {
-                return res.status(400).json({ message: "User not found. Please create account first." });
-            }
+            // Note: We don't need to check if user exists in our database
+            // Firebase Auth users are automatically valid
 
             const tokens = await getTokensFromCode(code);
 

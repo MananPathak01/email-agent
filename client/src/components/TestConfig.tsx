@@ -10,10 +10,11 @@ export const TestConfig = () => {
       // Don't log the full config for security
       configLoaded: !!import.meta.env.VITE_FIREBASE_API_KEY
     });
-    
+
     console.log('API Configuration:', {
       apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'MISSING',
-      isUsingRender: import.meta.env.VITE_API_BASE_URL?.includes('onrender.com') || false
+      isUsingRender: import.meta.env.VITE_API_BASE_URL?.includes('onrender.com') || false,
+      allEnvVars: import.meta.env
     });
   }, []);
 

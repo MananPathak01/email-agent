@@ -23,7 +23,7 @@ export default function OAuthCallback() {
 
       if (code && user) {
         try {
-          const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+          const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://email-agent-1-4duk.onrender.com';
           const response = await fetch(baseURL + '/api/auth/gmail/callback', {
             method: 'POST',
             headers: {
@@ -38,15 +38,15 @@ export default function OAuthCallback() {
           if (response.ok) {
             const data = await response.json();
             console.log('📧 OAuth callback received data:', data);
-            
+
             if (window.opener) {
               // Extract email from the account data and format it properly
               const email = data.account?.email;
               console.log('📤 Sending OAuth success message with email:', email);
-              
-              window.opener.postMessage({ 
-                type: 'oauth_success', 
-                data: { email, success: true, account: data.account } 
+
+              window.opener.postMessage({
+                type: 'oauth_success',
+                data: { email, success: true, account: data.account }
               }, '*');
             }
             window.close();

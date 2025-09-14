@@ -119,7 +119,7 @@ export default function Sidebar() {
       if (!user || !auth.currentUser) return [];
 
       const idToken = await auth.currentUser.getIdToken();
-      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://email-agent-1-4duk.onrender.com';
       const response = await fetch(baseURL + '/api/gmail/accounts', {
         headers: {
           'Authorization': `Bearer ${idToken}`,
@@ -159,7 +159,7 @@ export default function Sidebar() {
 
       // Get the auth URL
       const idToken = await currentUser.getIdToken();
-      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://email-agent-1-4duk.onrender.com';
       const response = await fetch(baseURL + '/api/gmail/auth', {
         headers: {
           'Authorization': `Bearer ${idToken}`,

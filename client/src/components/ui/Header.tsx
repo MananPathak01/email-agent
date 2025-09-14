@@ -22,7 +22,7 @@ export default function Header() {
   return (
     <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95vw] max-w-5xl rounded-full bg-white/80 shadow-lg backdrop-blur-md border border-gray-200 flex items-center justify-between px-4 md:px-8 py-3">
       {/* Logo/Brand */}
-      <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setLocation("/")}> 
+      <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setLocation("/")}>
         <Bot className="h-7 w-7 text-blue-600" />
         <span className="text-lg font-bold text-gray-900">AI Workforce</span>
       </div>

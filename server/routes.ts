@@ -252,36 +252,56 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
             const existingAccountQuery = query(accountsCollection, where('userId', '==', userId), where('email', '==', email));
 
             console.log('🔄 Step 3a: Checking for existing account...');
-            const existingAccount = await getDocs(existingAccountQuery);
-            console.log('✅ Step 3a complete: Existing account check done');
+            let existingAccount;
+            try {
+                existingAccount = await getDocs(existingAccountQuery);
+                console.log('✅ Step 3a complete: Existing account check done');
+            } catch (error) {
+                console.error('❌ Step 3a failed: Error checking existing account:', error);
+                throw error;
+            }
 
             let accountDocRef;
 
             if (!existingAccount.empty) { // Update existing account
-                const docId = existingAccount.docs[0].id;
-                accountDocRef = doc(accountsCollection, docId);
-                await setDoc(accountDocRef, {
-                    accessToken: tokens.access_token,
-                    refreshToken: tokens.refresh_token,
-                    isActive: true,
-                    updatedAt: new Date().toISOString(),
-                    lastConnectedAt: new Date().toISOString()
-                }, { merge: true });
+                console.log('🔄 Step 3b: Updating existing account...');
+                try {
+                    const docId = existingAccount.docs[0].id;
+                    accountDocRef = doc(accountsCollection, docId);
+                    await setDoc(accountDocRef, {
+                        accessToken: tokens.access_token,
+                        refreshToken: tokens.refresh_token,
+                        isActive: true,
+                        updatedAt: new Date().toISOString(),
+                        lastConnectedAt: new Date().toISOString()
+                    }, { merge: true });
+                    console.log('✅ Step 3b complete: Account updated');
+                } catch (error) {
+                    console.error('❌ Step 3b failed: Error updating account:', error);
+                    throw error;
+                }
             } else { // Create new account
-                const gmailAccount = {
-                    userId: userId as string,
-                    email,
-                    accessToken: tokens.access_token,
-                    refreshToken: tokens.refresh_token,
-                    isActive: true,
-                    provider: 'gmail',
-                    connectionStatus: 'connected',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    lastConnectedAt: new Date().toISOString()
-                };
+                console.log('🔄 Step 3b: Creating new account...');
+                try {
+                    const gmailAccount = {
+                        userId: userId as string,
+                        email,
+                        accessToken: tokens.access_token,
+                        refreshToken: tokens.refresh_token,
+                        isActive: true,
+                        provider: 'gmail',
+                        connectionStatus: 'connected',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        lastConnectedAt: new Date().toISOString()
+                    };
 
-                accountDocRef = await addDoc(accountsCollection, gmailAccount);
+                    accountDocRef = await addDoc(accountsCollection, gmailAccount);
+                    console.log('✅ Step 3b complete: Account created');
+                } catch (error) {
+                    console.error('❌ Step 3b failed: Error creating account:', error);
+                    throw error;
+                }
             }
 
             // Get the saved account data

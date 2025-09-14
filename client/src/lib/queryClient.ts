@@ -31,8 +31,8 @@ export async function apiRequest(
     }
   }
 
-  // Use environment variable for API base URL, fallback to relative URL for development
-  const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+  // Use hardcoded Render backend URL
+  const baseURL = 'https://email-agent-1-4duk.onrender.com';
   const fullUrl = baseURL + url;
 
   const res = await fetch(fullUrl, {
@@ -52,7 +52,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
-      const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+      const baseURL = 'https://email-agent-1-4duk.onrender.com';
       const url = baseURL + queryKey.join("/");
 
       const res = await fetch(url, {

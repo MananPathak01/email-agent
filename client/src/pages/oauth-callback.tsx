@@ -23,7 +23,7 @@ export default function OAuthCallback() {
 
       if (code && user) {
         try {
-          const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://email-agent-1-4duk.onrender.com';
+          const baseURL = 'https://email-agent-1-4duk.onrender.com';
           const response = await fetch(baseURL + '/api/auth/gmail/callback', {
             method: 'POST',
             headers: {

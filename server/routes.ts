@@ -228,15 +228,21 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
             // Note: We don't need to check if user exists in our database
             // Firebase Auth users are automatically valid
 
+            console.log('🔄 Step 1: Exchanging code for tokens...');
             const tokens = await getTokensFromCode(code);
+            console.log('✅ Step 1 complete: Tokens received');
 
             if (!tokens.access_token || !tokens.refresh_token) {
+                console.error('❌ Step 1 failed: Missing tokens');
                 return res.status(400).json({ message: "Failed to get tokens" });
             }
 
+            console.log('🔄 Step 2: Getting user email from Gmail...');
             // Get user email from Gmail
             const email = await getUserEmail(tokens);
+            console.log('✅ Step 2 complete: Email received:', email);
 
+            console.log('🔄 Step 3: Storing Gmail account in Firebase...');
             console.log('Creating Gmail account for:', { userId, email });
 
             // Store the Gmail account in Firebase
@@ -245,7 +251,9 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
             // Check if this email is already connected for this user
             const existingAccountQuery = query(accountsCollection, where('userId', '==', userId), where('email', '==', email));
 
+            console.log('🔄 Step 3a: Checking for existing account...');
             const existingAccount = await getDocs(existingAccountQuery);
+            console.log('✅ Step 3a complete: Existing account check done');
 
             let accountDocRef;
 
@@ -296,7 +304,16 @@ export async function registerRoutes(app: Express): Promise<Server> { // Parse J
             res.json({ success: true, account: savedAccount });
         } catch (error) {
             console.error("Gmail OAuth callback error:", error);
-            res.status(500).json({ message: "Failed to connect Gmail account" });
+            console.error("Error details:", {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            res.status(500).json({ 
+                message: "Failed to connect Gmail account",
+                error: error.message,
+                details: error.stack
+            });
         }
     });
 

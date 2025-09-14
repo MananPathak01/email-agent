@@ -6,8 +6,13 @@ export default function OAuthCallback() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
+  console.log('🔄 OAuthCallback component rendered');
+
   useEffect(() => {
+    console.log('🔄 useEffect triggered, user:', !!user);
+    
     const handleCallback = async () => {
+      console.log('🔄 handleCallback function started');
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const error = urlParams.get('error');
@@ -81,7 +86,7 @@ export default function OAuthCallback() {
     };
 
     handleCallback();
-  }, [user]);
+  }, []); // Remove user dependency since we're using state parameter
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

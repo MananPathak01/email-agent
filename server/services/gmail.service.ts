@@ -495,7 +495,9 @@ export class GmailService {
  * Generates the Google OAuth URL.
  */
 export function getAuthUrl(userId : string): string {
-    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
+    // Use the frontend callback URL instead of backend
+    const redirectUri = 'https://www.mailwise.dev/oauth/callback';
+    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, redirectUri);
 
     const scopes = [
         'https://www.googleapis.com/auth/gmail.readonly',

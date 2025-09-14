@@ -10,11 +10,11 @@ export default function OAuthCallback() {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const success = urlParams.get('success');
-    const email = urlParams.get('email');
+    const code = urlParams.get('code');
     const error = urlParams.get('error');
+    const state = urlParams.get('state'); // This should contain the userId
 
-    console.log('📧 OAuth callback URL params:', { success, email, error });
+    console.log('📧 OAuth callback URL params:', { code: !!code, error, state });
     console.log('📧 Full URL:', window.location.href);
 
     if (error) {
@@ -35,38 +35,78 @@ export default function OAuthCallback() {
       return;
     }
 
-    if (success === 'true') {
-      console.log('OAuth success! Email:', email);
-      setStatus('success');
-      setMessage(`Successfully connected ${email || 'Gmail account'}!`);
+    if (code && state) {
+      console.log('🔄 Processing OAuth callback with code and state');
+      
+      const processCallback = async () => {
+        try {
+          const baseURL = 'https://email-agent-1-4duk.onrender.com';
+          const requestBody = {
+            code,
+            userId: state, // Use the state parameter which contains the userId
+          };
+          
+          console.log('📤 Making OAuth callback request to:', baseURL + '/api/auth/gmail/callback');
+          console.log('📤 Request body:', { code: !!code, userId: state });
+          
+          const response = await fetch(baseURL + '/api/auth/gmail/callback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+          
+          console.log('📥 Response status:', response.status);
+          console.log('📥 Response ok:', response.ok);
 
-      // Notify parent window if this is a popup
-      if (window.opener) {
-        console.log('📤 Sending OAuth success message with email:', email);
-        window.opener.postMessage({
-          type: 'oauth_success',
-          data: { email, success: true }
-        }, '*');
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📧 OAuth callback received data:', data);
 
-        // Close popup after a short delay to show success message
-        setTimeout(() => {
-          window.close();
-        }, 1500);
-        return;
-      }
+            setStatus('success');
+            setMessage(`Successfully connected ${data.account?.email || 'Gmail account'}!`);
 
-      // If not a popup, redirect normally
-      const redirectTimer = setTimeout(() => {
-        if (!loading) {
-          if (user) {
-            setLocation('/chat');
+            // Notify parent window if this is a popup
+            if (window.opener) {
+              console.log('📤 Sending OAuth success message with email:', data.account?.email);
+              window.opener.postMessage({
+                type: 'oauth_success',
+                data: { email: data.account?.email, success: true, account: data.account }
+              }, '*');
+
+              // Close popup after a short delay to show success message
+              setTimeout(() => {
+                window.close();
+              }, 1500);
+              return;
+            }
+
+            // If not a popup, redirect normally
+            setTimeout(() => {
+              setLocation('/chat');
+            }, 2000);
           } else {
-            setLocation('/login');
+            const errorData = await response.text();
+            throw new Error(`Failed to process OAuth callback: ${response.status} ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Callback processing error:', error);
+          setStatus('error');
+          setMessage(`Authentication failed: ${error.message}`);
+          
+          if (window.opener) {
+            window.opener.postMessage({ type: 'oauth_error', error: error.message }, '*');
+            setTimeout(() => {
+              window.close();
+            }, 3000);
+            return;
           }
         }
-      }, 2000);
+      };
 
-      return () => clearTimeout(redirectTimer);
+      processCallback();
+      return;
     }
 
     // If no success or error params, redirect based on auth state
